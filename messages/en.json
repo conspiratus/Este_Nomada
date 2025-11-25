@@ -1,0 +1,90 @@
+{
+  "common": {
+    "main": "Main",
+    "menu": "Menu",
+    "ourDishes": "Our Dishes",
+    "stories": "Stories",
+    "order": "Order",
+    "about": "About Us",
+    "contact": "Contact"
+  },
+  "hero": {
+    "title": "Este Nómada",
+    "subtitle": "Eastern cuisine, born on the road",
+    "description": "Authentic flavors from Central Asia, prepared with love and tradition",
+    "readMore": "Read stories",
+    "telegramChannel": "Telegram Channel"
+  },
+  "about": {
+    "title": "About Este Nómada",
+    "description": "We are travelers who carry the warmth of home in every dish. Our recipes have been passed down through generations, and each meal tells a story of journeys, encounters, and traditions.",
+    "mission": "Our Mission",
+    "missionText": "To share authentic Eastern cuisine with everyone we meet on our journey, preserving traditions and creating new memories."
+  },
+  "menu": {
+    "title": "Menu",
+    "subtitle": "Each dish is prepared with love and according to traditional recipes",
+    "category": "Category",
+    "price": "Price",
+    "otherImages": "Other images",
+    "attributes": "Attributes",
+    "relatedStories": "Related Stories"
+  },
+  "stories": {
+    "title": "Stories on the Road",
+    "subtitle": "Stories about our journey, dishes, and people we meet along the way",
+    "readMore": "Read more",
+    "allStories": "All stories",
+    "back": "← All stories"
+  },
+  "pathMap": {
+    "title": "Route Map",
+    "quote": "Every dish is a point on our journey"
+  },
+  "order": {
+    "title": "Place an Order",
+    "subtitle": "Fill out the form and we will contact you to confirm your order",
+    "name": "Name",
+    "namePlaceholder": "Your name",
+    "phone": "Phone",
+    "phonePlaceholder": "+34 XXX XXX XXX",
+    "dishes": "Select dishes",
+    "selectedDishes": "Selected dishes",
+    "total": "Total",
+    "comment": "Comment",
+    "commentPlaceholder": "Special requests, delivery time, etc.",
+    "submit": "Submit order",
+    "success": "Thank you for your order!",
+    "successMessage": "Your form has been submitted successfully. We will contact you soon.",
+    "formComingSoon": "Form Coming Soon",
+    "formComingSoonText": "We are working on the ordering system. For now, please contact us via Telegram or Email to place an order.",
+    "writeTelegram": "Write on Telegram",
+    "writeEmail": "Write on Email",
+    "noDishes": "No dishes available",
+    "loading": "Loading dishes..."
+  },
+  "footer": {
+    "contact": "Contact",
+    "email": "Email",
+    "telegram": "Telegram",
+    "telegramChannel": "Telegram Channel",
+    "location": "We are located",
+    "locationText": "Asturias, Spain",
+    "madeIn": "Made in Asturias",
+    "rights": "All rights reserved",
+    "description": "Eastern cuisine, born on the road"
+  },
+  "admin": {
+    "login": "Admin Panel",
+    "username": "Username",
+    "password": "Password",
+    "loginButton": "Login",
+    "dashboard": "Dashboard",
+    "stories": "Stories",
+    "menu": "Menu",
+    "settings": "Settings",
+    "telegram": "Telegram",
+    "logout": "Logout"
+  }
+}
+

@@ -1,0 +1,228 @@
+{% extends "chef/base.html" %}
+
+{% block title %}ТТК: {{ dish.name }} - Интерфейс повара{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ttk-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #2c3e50;
+    }
+    .ttk-meta {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 1rem;
+        color: #7f8c8d;
+        font-size: 0.9rem;
+    }
+    .ttk-tabs {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid #e0e0e0;
+    }
+    .ttk-tab {
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        border: none;
+        background: none;
+        color: #7f8c8d;
+        font-size: 1rem;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+    }
+    .ttk-tab.active {
+        color: #2c3e50;
+        border-bottom-color: #2c3e50;
+        font-weight: bold;
+    }
+    .ttk-tab-content {
+        display: none;
+    }
+    .ttk-tab-content.active {
+        display: block;
+    }
+    .ttk-editor {
+        margin-bottom: 1rem;
+    }
+    .ttk-editor-textarea {
+        width: 100%;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        line-height: 1.5;
+        padding: 1rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: #fffacd !important;
+    }
+    .ttk-content {
+        position: relative;
+        padding: 1rem;
+        background: #f9f9f9;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        line-height: 1.4;
+        max-height: 800px;
+        overflow-y: auto;
+    }
+    .version-history {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .version-item {
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        background: white;
+        border-radius: 4px;
+        border-left: 3px solid #007bff;
+    }
+    .version-item small {
+        color: #7f8c8d;
+    }
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+    }
+    .form-text {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 0.875rem;
+    }
+    .text-muted {
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Переключение вкладок
+    const tabs = document.querySelectorAll('.ttk-tab');
+    const tabContents = document.querySelectorAll('.ttk-tab-content');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const targetTab = this.dataset.tab;
+            
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            
+            this.classList.add('active');
+            document.getElementById(`tab-${targetTab}`).classList.add('active');
+        });
+    });
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'chef:dish_detail' dish.id %}" class="back-link">← Назад к блюду</a>
+
+<div class="card">
+    <div class="ttk-header">
+        <h2>ТТК: {{ dish.name }}</h2>
+        <div>
+            {% if ttk.ttk_file %}
+            <a href="{{ ttk.ttk_file.url }}" class="btn btn-secondary" target="_blank">Скачать файл</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="ttk-meta">
+        {% if ttk.version %}
+        <div><strong>Версия:</strong> {{ ttk.version }}</div>
+        {% endif %}
+        <div><strong>Обновлено:</strong> {{ ttk.updated_at|date:"d.m.Y H:i" }}</div>
+    </div>
+
+    <div class="ttk-tabs">
+        <button class="ttk-tab active" data-tab="view">Просмотр</button>
+        <button class="ttk-tab" data-tab="edit">Редактирование</button>
+        <button class="ttk-tab" data-tab="history">История версий</button>
+    </div>
+
+    <!-- Вкладка просмотра -->
+    <div id="tab-view" class="ttk-tab-content active">
+        {% if html_content %}
+        <div class="ttk-content">
+            {{ html_content|safe }}
+        </div>
+        {% elif ttk_content %}
+        <div class="ttk-content">
+            <pre>{{ ttk_content }}</pre>
+        </div>
+        {% else %}
+        <div class="card" style="background-color: #f8d7da; color: #721c24;">
+            <p>Не удалось загрузить содержимое ТТК. Попробуйте скачать файл напрямую.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Вкладка редактирования -->
+    <div id="tab-edit" class="ttk-tab-content">
+        <form method="post" action="{% url 'chef:ttk_edit' dish.id %}">
+            {% csrf_token %}
+            <div class="ttk-editor">
+                {{ edit_form.content }}
+            </div>
+            <div class="form-group">
+                <label>{{ edit_form.version.label }}</label>
+                {{ edit_form.version }}
+                <small class="form-text text-muted">{{ edit_form.version.help_text }}</small>
+            </div>
+            <div class="form-group">
+                <label>{{ edit_form.change_description.label }}</label>
+                {{ edit_form.change_description }}
+                <small class="form-text text-muted">{{ edit_form.change_description.help_text }}</small>
+            </div>
+            <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+        </form>
+    </div>
+
+    <!-- Вкладка истории версий -->
+    <div id="tab-history" class="ttk-tab-content">
+        <div class="version-history">
+            {% if version_history %}
+                {% for version in version_history %}
+                <div class="version-item">
+                    <div><strong>Версия {{ version.version }}</strong></div>
+                    <div class="text-muted">
+                        {% if version.changed_by %}
+                        Изменено: {{ version.changed_by.get_full_name|default:version.changed_by.username }}
+                        {% endif %}
+                        <br>
+                        {{ version.created_at|date:"d.m.Y H:i" }}
+                    </div>
+                    {% if version.change_description %}
+                    <div style="margin-top: 0.5rem;">
+                        <strong>Изменения:</strong> {{ version.change_description }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">История версий пуста</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

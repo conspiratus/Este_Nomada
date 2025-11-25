@@ -1,0 +1,131 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: estenomada_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-czjey8yl0_estenomada}
+      MYSQL_USER: ${DB_USER:-czjey8yl0_estenomada}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - estenomada_network
+
+  # Redis для Celery
+  redis:
+    image: redis:7-alpine
+    container_name: estenomada_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - estenomada_network
+
+  # Django Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: estenomada_backend
+    restart: always
+    env_file:
+      - backend/.env.production
+    environment:
+      - DB_HOST=db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - ./backend/media:/app/media
+      - ./backend/staticfiles:/app/staticfiles
+      - ./backend/logs:/app/logs
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - estenomada_network
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 120 este_nomada.wsgi:application"
+
+  # Celery Worker
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: estenomada_celery
+    restart: always
+    env_file:
+      - backend/.env.production
+    environment:
+      - DB_HOST=db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - ./backend/media:/app/media
+      - ./backend/logs:/app/logs
+    depends_on:
+      - db
+      - redis
+      - backend
+    networks:
+      - estenomada_network
+    command: celery -A este_nomada worker --loglevel=info
+
+  # Celery Beat (для периодических задач)
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: estenomada_celery_beat
+    restart: always
+    env_file:
+      - backend/.env.production
+    environment:
+      - DB_HOST=db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - ./backend/logs:/app/logs
+    depends_on:
+      - db
+      - redis
+      - backend
+    networks:
+      - estenomada_network
+    command: celery -A este_nomada beat --loglevel=info
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: estenomada_frontend
+    restart: always
+    env_file:
+      - .env.production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - estenomada_network
+
+volumes:
+  db_data:
+
+networks:
+  estenomada_network:
+    driver: bridge
+
+
+

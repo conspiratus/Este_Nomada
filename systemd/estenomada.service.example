@@ -1,0 +1,30 @@
+# Systemd service для Este Nómada
+# Скопируйте в /etc/systemd/system/estenomada.service
+
+[Unit]
+Description=Este Nomada Next.js App
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=estenomada
+Group=estenomada
+WorkingDirectory=/home/estenomada/este-nomada
+Environment=NODE_ENV=production
+EnvironmentFile=/home/estenomada/este-nomada/.env.production
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=estenomada
+
+# Ограничения ресурсов (опционально)
+LimitNOFILE=65536
+MemoryLimit=1G
+
+[Install]
+WantedBy=multi-user.target
+
+
+

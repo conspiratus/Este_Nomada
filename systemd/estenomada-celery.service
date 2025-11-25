@@ -1,0 +1,23 @@
+[Unit]
+Description=Este Nómada Celery Worker
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/estenomada/backend
+Environment="PATH=/var/www/estenomada/backend/venv/bin"
+EnvironmentFile=/var/www/estenomada/backend/.env.production
+ExecStart=/var/www/estenomada/backend/venv/bin/celery \
+    -A este_nomada worker \
+    --loglevel=info \
+    --logfile=/var/www/estenomada/backend/logs/celery.log
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+
+
+

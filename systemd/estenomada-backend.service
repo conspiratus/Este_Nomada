@@ -1,0 +1,25 @@
+[Unit]
+Description=Este Nómada Django Backend
+After=network.target mysql.service
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/estenomada/backend
+Environment="PATH=/var/www/estenomada/backend/venv/bin:/usr/bin:/bin"
+EnvironmentFile=/var/www/estenomada/backend/.env.production
+ExecStart=/var/www/estenomada/backend/venv/bin/gunicorn \
+    --bind 0.0.0.0:8000 \
+    --workers 4 \
+    --timeout 120 \
+    --access-logfile /var/www/estenomada/backend/logs/access.log \
+    --error-logfile /var/www/estenomada/backend/logs/error.log \
+    este_nomada.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+

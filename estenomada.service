@@ -1,0 +1,19 @@
+[Unit]
+Description=Este Nomada Next.js App
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=administrator
+WorkingDirectory=/var/www/estenomada
+Environment=NODE_ENV=production
+EnvironmentFile=/var/www/estenomada/.env
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

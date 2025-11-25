@@ -1,0 +1,81 @@
+#!/usr/bin/expect -f
+
+set timeout 30
+set server "administrator@85.190.102.101"
+set password "Jovi4AndMay2020!"
+set remote_path "/var/www/estenomada"
+
+spawn scp backend/core/migrations/0012_add_logo_to_settings.py $server:$remote_path/backend/core/migrations/
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof
+}
+
+spawn scp backend/core/models.py $server:$remote_path/backend/core/
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof
+}
+
+spawn scp backend/core/admin.py $server:$remote_path/backend/core/
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof
+}
+
+spawn scp backend/core/signals.py $server:$remote_path/backend/core/
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof
+}
+
+spawn scp backend/api/serializers.py $server:$remote_path/backend/api/
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof
+}
+
+spawn scp backend/api/views.py $server:$remote_path/backend/api/
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof
+}
+
+spawn scp backend/api/urls.py $server:$remote_path/backend/api/
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof
+}
+
+spawn ssh $server "mkdir -p $remote_path/backend/media/settings"
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof
+}
+
+spawn scp public/logo_EN.png $server:$remote_path/backend/media/settings/logo_EN.png
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof
+}
+
+spawn ssh $server "cd $remote_path/backend && source venv/bin/activate && python manage.py migrate core"
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof
+}
+
+spawn ssh $server "cd $remote_path/backend && source venv/bin/activate && python manage.py shell -c \"from core.models import Settings; import os; from django.core.files import File; settings = Settings.get_settings(); logo_path = '$remote_path/backend/media/settings/logo_EN.png'; f = open(logo_path, 'rb'); settings.logo.save('logo_EN.png', File(f), save=True); f.close(); print('Логотип загружен')\""
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof
+}
+
+spawn ssh $server "sudo systemctl restart estenomada-backend"
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    eof
+}
+
+exit
+
