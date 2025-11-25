@@ -41,3 +41,6 @@ DEPLOY_QUICK.md
 next-env.d.ts
 
 archive/
+
+# deploy archives
+*.tar.gz
