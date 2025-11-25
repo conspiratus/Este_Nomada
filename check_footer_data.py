@@ -16,3 +16,4 @@ if data.get('results'):
     print(f"Title: {first.get('title', '')[:200]}")
     print(f"Content: {first.get('content', '')[:200] if first.get('content') else ''}")
 
+

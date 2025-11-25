@@ -51,3 +51,4 @@ echo "🌐 Проверь:"
 echo "   - https://nomadadeleste.es/ru"
 echo "   - https://nomadadeleste.com/ru"
 
+

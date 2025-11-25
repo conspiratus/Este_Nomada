@@ -107,3 +107,4 @@ celery -A este_nomada worker --loglevel=info
 
 
 
+

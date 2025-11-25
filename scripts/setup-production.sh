@@ -88,3 +88,4 @@ echo "  sudo journalctl -u estenomada-frontend -f"
 
 
 
+

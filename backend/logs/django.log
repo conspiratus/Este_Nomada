@@ -3520,3 +3520,9 @@ Watching for file changes with StatReloader
 Watching for file changes with StatReloader
 /Users/conspiratus/Projects/Este_Nomada/backend/core/admin.py changed, reloading.
 Watching for file changes with StatReloader
+/Users/conspiratus/Projects/Este_Nomada/backend/este_nomada/__init__.py changed, reloading.
+Watching for file changes with StatReloader
+/Users/conspiratus/Projects/Este_Nomada/backend/este_nomada/settings.py changed, reloading.
+Watching for file changes with StatReloader
+/Users/conspiratus/Projects/Este_Nomada/backend/core/signals.py changed, reloading.
+Watching for file changes with StatReloader

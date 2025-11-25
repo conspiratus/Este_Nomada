@@ -49,3 +49,4 @@ const domainToCookiebotId: Record<string, string> = {
 
 Если используешь Вариант 2 (отдельные группы), замени TODO комментарии на реальные Cookiebot ID после создания групп.
 
+

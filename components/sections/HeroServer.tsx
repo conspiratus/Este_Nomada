@@ -25,3 +25,4 @@ export default async function HeroServer({ locale }: { locale: string }) {
   return <Hero locale={locale} />;
 }
 
+

@@ -44,3 +44,4 @@ sshpass -p "$PASSWORD" ssh $SERVER "sudo systemctl restart estenomada-backend"
 
 echo "Готово!"
 
+

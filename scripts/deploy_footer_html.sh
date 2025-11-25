@@ -71,3 +71,4 @@ puts "   - models.py: добавлен help_text для поля title"
 puts ""
 puts "🌐 Проверь сайт: https://estenomada.es"
 
+

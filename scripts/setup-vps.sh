@@ -51,3 +51,4 @@ echo "7. Настройте Nginx (см. VPS_SETUP.md)"
 
 
 
+
