@@ -189,11 +189,31 @@ jobs:
             # Frontend: устанавливаем зависимости
             echo "📦 Устанавливаем Node.js зависимости..."
             cd $FRONTEND_DIR
-            if [ -f "package-lock.json" ]; then
-              sudo -u www-data npm ci --production || sudo -u www-data npm install --production || echo "⚠️  Ошибка npm, но продолжаем"
-            else
-              sudo -u www-data npm install --production || echo "⚠️  Ошибка npm, но продолжаем"
+            
+            # Проверяем наличие .next директории
+            if [ ! -d ".next" ]; then
+              echo "❌ Ошибка: .next директория не найдена! Frontend не собран."
+              exit 1
             fi
+            
+            # Устанавливаем зависимости (нужны все, не только production, для server.js)
+            echo "Устанавливаю все зависимости..."
+            if [ -f "package-lock.json" ]; then
+              if ! sudo -u www-data npm ci; then
+                echo "⚠️  npm ci не удался, пробую npm install..."
+                sudo -u www-data npm install || echo "⚠️  Ошибка npm install"
+              fi
+            else
+              sudo -u www-data npm install || echo "⚠️  Ошибка npm install"
+            fi
+            
+            # Проверяем что next установлен
+            if [ ! -d "node_modules/next" ]; then
+              echo "❌ Ошибка: модуль 'next' не установлен!"
+              ls -la node_modules/ | head -10
+              exit 1
+            fi
+            echo "✅ Зависимости установлены"
             
             # Очищаем кэш Python
             echo "🧹 Очищаем кэш Python..."

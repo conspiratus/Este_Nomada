@@ -12,7 +12,7 @@ Environment="PORT=3000"
 Environment="HOSTNAME=0.0.0.0"
 Environment="NEXT_TELEMETRY_DISABLED=1"
 EnvironmentFile=/var/www/estenomada/.env.production
-ExecStart=/usr/bin/npm start
+ExecStart=/usr/bin/node /var/www/estenomada/server.js
 StandardOutput=journal
 StandardError=journal
 Restart=always
