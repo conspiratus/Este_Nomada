@@ -1,0 +1,78 @@
+{% extends "chef/base.html" %}
+
+{% block title %}Создание ТТК - {{ dish.name }} - Интерфейс повара{% endblock %}
+
+{% block content %}
+<a href="{% url 'chef:dish_detail' dish.id %}" class="back-link">← Назад к блюду</a>
+
+<div class="card">
+    <h2>Создание новой ТТК для "{{ dish.name }}"</h2>
+    
+    <form method="post" action="{% url 'chef:ttk_create' dish.id %}">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+            {{ form.name }}
+            {% if form.name.help_text %}
+            <small class="form-text text-muted">{{ form.name.help_text }}</small>
+            {% endif %}
+            {% if form.name.errors %}
+            <div class="error-message">{{ form.name.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.content.id_for_label }}">{{ form.content.label }}</label>
+            {{ form.content }}
+            {% if form.content.help_text %}
+            <small class="form-text text-muted">{{ form.content.help_text }}</small>
+            {% endif %}
+            {% if form.content.errors %}
+            <div class="error-message">{{ form.content.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.version.id_for_label }}">{{ form.version.label }}</label>
+            {{ form.version }}
+            {% if form.version.help_text %}
+            <small class="form-text text-muted">{{ form.version.help_text }}</small>
+            {% endif %}
+            {% if form.version.errors %}
+            <div class="error-message">{{ form.version.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+            {{ form.notes }}
+            {% if form.notes.help_text %}
+            <small class="form-text text-muted">{{ form.notes.help_text }}</small>
+            {% endif %}
+            {% if form.notes.errors %}
+            <div class="error-message">{{ form.notes.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                {{ form.active }}
+                <span style="margin-left: 0.5rem;">{{ form.active.label }}</span>
+            </label>
+            {% if form.active.help_text %}
+            <small class="form-text text-muted">{{ form.active.help_text }}</small>
+            {% endif %}
+            {% if form.active.errors %}
+            <div class="error-message">{{ form.active.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div style="margin-top: 2rem;">
+            <button type="submit" class="btn btn-primary">Создать ТТК</button>
+            <a href="{% url 'chef:dish_detail' dish.id %}" class="btn btn-secondary" style="margin-left: 0.5rem;">Отмена</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

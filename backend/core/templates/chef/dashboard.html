@@ -27,11 +27,11 @@
             <p style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 1rem;">{{ dish.description|truncatewords:15 }}</p>
             {% endif %}
             
-            {% if dish.ttk and dish.ttk.active %}
-            <span class="ttk-badge has-ttk">✓ ТТК доступна</span>
+            {% if dish.active_ttk %}
+            <span class="ttk-badge has-ttk">✓ ТТК доступна{% if dish.ttk_count > 1 %} ({{ dish.ttk_count }} версий){% endif %}</span>
             <div style="margin-top: 1rem;">
                 <a href="{% url 'chef:dish_detail' dish.id %}" class="btn">Подробнее</a>
-                <a href="{% url 'chef:ttk_view' dish.id %}" class="btn" style="margin-left: 0.5rem;">Просмотр ТТК</a>
+                <a href="{% url 'chef:ttk_view' dish.id dish.active_ttk.id %}" class="btn" style="margin-left: 0.5rem;">Просмотр ТТК</a>
             </div>
             {% else %}
             <span class="ttk-badge no-ttk">✗ ТТК отсутствует</span>

@@ -9,7 +9,8 @@ from django.db.models import Q
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
 from .models import MenuItem, DishTTK
-from .forms import TTKEditForm
+from .forms import TTKEditForm, TTKCreateForm
+from django.utils import timezone
 import markdown
 import os
 
@@ -49,7 +50,7 @@ def chef_logout(request):
 def chef_dashboard(request):
     """Главная страница интерфейса повара - список всех блюд с ТТК."""
     # Получаем все блюда (включая неактивные)
-    dishes = MenuItem.objects.all().select_related('ttk').prefetch_related('translations')
+    dishes = MenuItem.objects.all().prefetch_related('ttks', 'translations')
     
     # Поиск
     search_query = request.GET.get('search', '')
@@ -62,12 +63,17 @@ def chef_dashboard(request):
     # Фильтр по наличию ТТК
     ttk_filter = request.GET.get('ttk_filter', 'all')
     if ttk_filter == 'with_ttk':
-        dishes = dishes.filter(ttk__isnull=False, ttk__active=True)
+        dishes = dishes.filter(ttks__isnull=False, ttks__active=True).distinct()
     elif ttk_filter == 'without_ttk':
-        dishes = dishes.filter(ttk__isnull=True)
+        dishes = dishes.filter(ttks__isnull=True)
     
     # Сортируем по названию
     dishes = dishes.order_by('name')
+    
+    # Для каждого блюда получаем активную ТТК
+    for dish in dishes:
+        dish.active_ttk = dish.ttks.filter(active=True).first()
+        dish.ttk_count = dish.ttks.count()
     
     context = {
         'dishes': dishes,
@@ -82,17 +88,16 @@ def chef_dashboard(request):
 @login_required
 def chef_dish_detail(request, dish_id):
     """Детальная страница блюда с ТТК."""
-    try:
-        dish = MenuItem.objects.select_related('ttk').prefetch_related('translations').get(id=dish_id)
-    except MenuItem.DoesNotExist:
-        messages.error(request, 'Блюдо не найдено.')
-        return redirect('chef:dashboard')
+    dish = get_object_or_404(MenuItem, id=dish_id)
     
-    ttk = dish.ttk if hasattr(dish, 'ttk') else None
+    # Получаем все ТТК для этого блюда
+    ttks = dish.ttks.all().order_by('-active', '-updated_at')
+    active_ttk = dish.ttks.filter(active=True).first()
     
     context = {
         'dish': dish,
-        'ttk': ttk,
+        'ttks': ttks,
+        'active_ttk': active_ttk,
         'user': request.user,
     }
     
@@ -100,14 +105,18 @@ def chef_dish_detail(request, dish_id):
 
 
 @login_required
-def chef_ttk_view(request, dish_id):
+def chef_ttk_view(request, dish_id, ttk_id=None):
     """Просмотр содержимого ТТК файла с возможностью редактирования."""
     dish = get_object_or_404(MenuItem, id=dish_id)
-    ttk = dish.ttk if hasattr(dish, 'ttk') else None
     
-    if not ttk:
-        messages.error(request, 'ТТК для этого блюда не найдена.')
-        return redirect('chef:dashboard')
+    # Если ttk_id не указан, используем активную ТТК
+    if ttk_id:
+        ttk = get_object_or_404(DishTTK, id=ttk_id, menu_item=dish)
+    else:
+        ttk = dish.ttks.filter(active=True).first()
+        if not ttk:
+            messages.error(request, 'ТТК для этого блюда не найдена.')
+            return redirect('chef:dish_detail', dish_id=dish_id)
     
     # Читаем содержимое .md файла
     ttk_content = None
@@ -118,11 +127,11 @@ def chef_ttk_view(request, dish_id):
         # Используем Git репозиторий
         try:
             repo = ttk.get_git_repo()
-            ttk_content = repo.read_file(dish.id, dish.name)
+            ttk_content = repo.read_file(dish.id, dish.name, ttk_id=ttk.id, ttk_name=ttk.name)
             if ttk_content:
                 html_content = markdown.markdown(ttk_content)
                 # Получаем историю из Git
-                git_history = repo.get_file_history(dish.id, dish.name, limit=10)
+                git_history = repo.get_file_history(dish.id, dish.name, limit=10, ttk_id=ttk.id, ttk_name=ttk.name)
                 version_history = [
                     {
                         'version': f"commit {item['hash'][:7]}",
@@ -149,9 +158,13 @@ def chef_ttk_view(request, dish_id):
         'content': ttk_content or '',
     })
     
+    # Получаем все ТТК для этого блюда
+    all_ttks = dish.ttks.all().order_by('-active', '-updated_at')
+    
     context = {
         'dish': dish,
         'ttk': ttk,
+        'all_ttks': all_ttks,
         'ttk_content': ttk_content,
         'html_content': html_content,
         'version_history': version_history,
@@ -165,14 +178,10 @@ def chef_ttk_view(request, dish_id):
 
 @login_required
 @require_http_methods(["POST"])
-def chef_ttk_edit(request, dish_id):
+def chef_ttk_edit(request, dish_id, ttk_id):
     """Редактирование содержимого ТТК."""
     dish = get_object_or_404(MenuItem, id=dish_id)
-    ttk = dish.ttk if hasattr(dish, 'ttk') else None
-    
-    if not ttk:
-        messages.error(request, 'ТТК для этого блюда не найдена.')
-        return redirect('chef:dashboard')
+    ttk = get_object_or_404(DishTTK, id=ttk_id, menu_item=dish)
     
     form = TTKEditForm(request.POST)
     
@@ -193,14 +202,16 @@ def chef_ttk_edit(request, dish_id):
                 author_name = request.user.get_full_name() or request.user.username
                 author_email = request.user.email or settings.TTK_GIT_USER_EMAIL
                 
-                success = repo.write_file(
-                    dish.id,
-                    dish.name,
-                    new_content,
-                    commit_message,
-                    author_name=author_name,
-                    author_email=author_email
-                )
+                    success = repo.write_file(
+                        dish.id,
+                        dish.name,
+                        new_content,
+                        commit_message,
+                        author_name=author_name,
+                        author_email=author_email,
+                        ttk_id=ttk.id,
+                        ttk_name=ttk.name
+                    )
                 
                 if success:
                     ttk.save()  # Обновляем updated_at
@@ -221,7 +232,123 @@ def chef_ttk_edit(request, dish_id):
     else:
         messages.error(request, 'Ошибка в форме редактирования.')
     
-    return redirect('chef:ttk_view', dish_id=dish_id)
+    return redirect('chef:ttk_view', dish_id=dish_id, ttk_id=ttk_id)
 
+
+@login_required
+def chef_ttk_create(request, dish_id):
+    """Создание новой ТТК для блюда."""
+    dish = get_object_or_404(MenuItem, id=dish_id)
+    
+    if request.method == 'POST':
+        form = TTKCreateForm(request.POST)
+        
+        if form.is_valid():
+            name = form.cleaned_data['name']
+            content = form.cleaned_data['content']
+            version = form.cleaned_data.get('version', '').strip()
+            notes = form.cleaned_data.get('notes', '').strip()
+            make_active = form.cleaned_data.get('active', False)
+            
+            # Если делаем активной, деактивируем остальные ТТК этого блюда
+            if make_active:
+                dish.ttks.update(active=False)
+            
+            # Создаем новую ТТК
+            ttk = DishTTK.objects.create(
+                menu_item=dish,
+                name=name,
+                version=version or None,
+                notes=notes or None,
+                active=make_active
+            )
+            
+            # Сохраняем содержимое в Git или файл
+            try:
+                if settings.TTK_USE_GIT:
+                    repo = ttk.get_git_repo()
+                    author_name = request.user.get_full_name() or request.user.username
+                    author_email = request.user.email or settings.TTK_GIT_USER_EMAIL
+                    
+                    commit_message = f"Создание ТТК: {dish.name} - {name}"
+                    if version:
+                        commit_message += f" (версия {version})"
+                    
+                    success = repo.write_file(
+                        dish.id,
+                        dish.name,
+                        content,
+                        commit_message,
+                        author_name=author_name,
+                        author_email=author_email,
+                        ttk_id=ttk.id,
+                        ttk_name=ttk.name
+                    )
+                    
+                    if success:
+                        # Обновляем git_path
+                        file_path = repo.get_file_path(dish.id, dish.name, ttk_id=ttk.id, ttk_name=ttk.name)
+                        ttk.git_path = str(file_path.relative_to(repo.repo_path))
+                        ttk.save()
+                        messages.success(request, f'ТТК "{name}" успешно создана и сохранена в Git.')
+                    else:
+                        messages.error(request, 'Ошибка при сохранении ТТК в Git.')
+                        ttk.delete()
+                        return redirect('chef:dish_detail', dish_id=dish_id)
+                else:
+                    # Старый способ через FileField (не реализован для создания)
+                    messages.error(request, 'Создание ТТК через FileField не поддерживается. Включите Git интеграцию.')
+                    ttk.delete()
+                    return redirect('chef:dish_detail', dish_id=dish_id)
+            except Exception as e:
+                messages.error(request, f'Ошибка при создании ТТК: {str(e)}')
+                ttk.delete()
+                return redirect('chef:dish_detail', dish_id=dish_id)
+            
+            return redirect('chef:ttk_view', dish_id=dish_id, ttk_id=ttk.id)
+    else:
+        form = TTKCreateForm()
+    
+    context = {
+        'dish': dish,
+        'form': form,
+        'user': request.user,
+    }
+    
+    return render(request, 'chef/ttk_create.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def chef_ttk_set_active(request, dish_id, ttk_id):
+    """Установка активной ТТК для блюда."""
+    dish = get_object_or_404(MenuItem, id=dish_id)
+    ttk = get_object_or_404(DishTTK, id=ttk_id, menu_item=dish)
+    
+    # Деактивируем все ТТК этого блюда
+    dish.ttks.update(active=False)
+    
+    # Активируем выбранную ТТК
+    ttk.active = True
+    ttk.save()
+    
+    messages.success(request, f'ТТК "{ttk.name}" теперь активна для блюда "{dish.name}".')
+    
+    return redirect('chef:dish_detail', dish_id=dish_id)
+
+
+@login_required
+def chef_ttk_list(request, dish_id):
+    """Список всех ТТК для блюда."""
+    dish = get_object_or_404(MenuItem, id=dish_id)
+    ttks = dish.ttks.all().order_by('-active', '-updated_at')
+    
+    context = {
+        'dish': dish,
+        'ttks': ttks,
+        'user': request.user,
+    }
+    
+    return render(request, 'chef/ttk_list.html', context)
 
 

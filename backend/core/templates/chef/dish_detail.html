@@ -23,35 +23,60 @@
     {% endif %}
 
     <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #ddd;">
-        <h3>Технико-технологическая карта (ТТК)</h3>
-        {% if ttk and ttk.active %}
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="margin: 0;">Технико-технологические карты (ТТК)</h3>
+            <a href="{% url 'chef:ttk_create' dish.id %}" class="btn btn-primary">+ Создать новую ТТК</a>
+        </div>
+        
+        {% if ttks %}
         <div style="margin-top: 1rem;">
-            <div style="margin-bottom: 0.5rem;">
-                <strong>Файл:</strong> {{ ttk.get_file_name }}
-            </div>
-            {% if ttk.version %}
-            <div style="margin-bottom: 0.5rem;">
-                <strong>Версия:</strong> {{ ttk.version }}
-            </div>
-            {% endif %}
-            {% if ttk.notes %}
-            <div style="margin-bottom: 1rem;">
-                <strong>Примечания:</strong> {{ ttk.notes }}
-            </div>
-            {% endif %}
-            <div style="margin-bottom: 0.5rem;">
-                <strong>Дата обновления:</strong> {{ ttk.updated_at|date:"d.m.Y H:i" }}
-            </div>
-            <div style="margin-top: 1rem;">
-                <a href="{% url 'chef:ttk_view' dish.id %}" class="btn">Просмотр ТТК</a>
-                {% if ttk.ttk_file %}
-                <a href="{{ ttk.ttk_file.url }}" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Скачать файл</a>
-                {% endif %}
-            </div>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background-color: #f5f5f5; border-bottom: 2px solid #ddd;">
+                        <th style="padding: 0.75rem; text-align: left;">Название</th>
+                        <th style="padding: 0.75rem; text-align: left;">Версия</th>
+                        <th style="padding: 0.75rem; text-align: left;">Статус</th>
+                        <th style="padding: 0.75rem; text-align: left;">Обновлено</th>
+                        <th style="padding: 0.75rem; text-align: center;">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ttk in ttks %}
+                    <tr style="border-bottom: 1px solid #eee; {% if ttk.active %}background-color: #f0f8ff;{% endif %}">
+                        <td style="padding: 0.75rem;">
+                            <strong>{{ ttk.name }}</strong>
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            {{ ttk.version|default:"—" }}
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            {% if ttk.active %}
+                            <span style="color: #27ae60; font-weight: bold;">✓ Активна</span>
+                            {% else %}
+                            <span style="color: #7f8c8d;">Неактивна</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            {{ ttk.updated_at|date:"d.m.Y H:i" }}
+                        </td>
+                        <td style="padding: 0.75rem; text-align: center;">
+                            <a href="{% url 'chef:ttk_view' dish.id ttk.id %}" class="btn btn-sm">Просмотр</a>
+                            {% if not ttk.active %}
+                            <form method="post" action="{% url 'chef:ttk_set_active' dish.id ttk.id %}" style="display: inline; margin-left: 0.5rem;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-secondary">Сделать активной</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
         {% else %}
-        <div style="margin-top: 1rem; color: #7f8c8d;">
-            ТТК для этого блюда не загружена или неактивна.
+        <div style="margin-top: 1rem; padding: 2rem; text-align: center; color: #7f8c8d; background-color: #f9f9f9; border-radius: 4px;">
+            <p>ТТК для этого блюда еще не созданы.</p>
+            <a href="{% url 'chef:ttk_create' dish.id %}" class="btn btn-primary" style="margin-top: 1rem;">Создать первую ТТК</a>
         </div>
         {% endif %}
     </div>

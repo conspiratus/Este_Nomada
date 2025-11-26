@@ -527,12 +527,18 @@ class FooterSectionTranslation(models.Model):
 
 class DishTTK(models.Model):
     """Модель для технико-технологических карт (ТТК) блюд."""
-    menu_item = models.OneToOneField(
+    menu_item = models.ForeignKey(
         MenuItem,
         on_delete=models.CASCADE,
-        related_name='ttk',
+        related_name='ttks',
         verbose_name='Блюдо',
         help_text='Выберите блюдо, для которого создается ТТК'
+    )
+    name = models.CharField(
+        max_length=200,
+        verbose_name='Название ТТК',
+        help_text='Название или тип ТТК (например: "для дома", "для ресторана", "базовая версия")',
+        default='Основная версия'
     )
     ttk_file = models.FileField(
         upload_to='ttk/',
@@ -540,6 +546,13 @@ class DishTTK(models.Model):
         help_text='Загрузите файл технико-технологической карты в формате Markdown (.md)',
         blank=True,
         null=True
+    )
+    git_path = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name='Путь в Git репозитории',
+        help_text='Относительный путь к файлу ТТК в Git репозитории'
     )
     version = models.CharField(
         max_length=50,
@@ -557,7 +570,7 @@ class DishTTK(models.Model):
     active = models.BooleanField(
         default=True,
         verbose_name='Активна',
-        help_text='Активна ли данная версия ТТК'
+        help_text='Активна ли данная версия ТТК (только одна ТТК может быть активной для блюда)'
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
@@ -574,7 +587,8 @@ class DishTTK(models.Model):
 
     def __str__(self):
         version_str = f' (v{self.version})' if self.version else ''
-        return f'ТТК: {self.menu_item.name}{version_str}'
+        active_str = ' [Активна]' if self.active else ''
+        return f'ТТК: {self.menu_item.name} - {self.name}{version_str}{active_str}'
     
     def get_file_name(self):
         """Возвращает имя файла без пути."""
@@ -582,7 +596,7 @@ class DishTTK(models.Model):
         if settings.TTK_USE_GIT:
             from .git_utils import TTKGitRepository
             repo = TTKGitRepository(settings.TTK_GIT_REPO_PATH)
-            file_path = repo.get_file_path(self.menu_item.id, self.menu_item.name)
+            file_path = repo.get_file_path(self.menu_item.id, self.menu_item.name, ttk_id=self.id, ttk_name=self.name)
             return file_path.name
         elif self.ttk_file:
             return self.ttk_file.name.split('/')[-1]

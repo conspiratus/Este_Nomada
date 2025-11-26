@@ -79,13 +79,15 @@ class TTKGitRepository:
             logger.error(f"Error running git command: {e}")
             raise
     
-    def get_file_path(self, dish_id: int, dish_name: str) -> Path:
+    def get_file_path(self, dish_id: int, dish_name: str, ttk_id: int = None, ttk_name: str = None) -> Path:
         """
         Возвращает путь к файлу ТТК в репозитории.
         
         Args:
             dish_id: ID блюда
             dish_name: Название блюда
+            ttk_id: ID ТТК (для создания уникального файла)
+            ttk_name: Название ТТК (для создания уникального файла)
         
         Returns:
             Path к файлу ТТК
@@ -93,21 +95,34 @@ class TTKGitRepository:
         # Создаем безопасное имя файла
         safe_name = "".join(c for c in dish_name if c.isalnum() or c in (' ', '-', '_')).strip()
         safe_name = safe_name.replace(' ', '_')
-        filename = f"{dish_id}_{safe_name}.md"
+        
+        # Если указан ttk_id или ttk_name, добавляем его к имени файла
+        if ttk_id:
+            filename = f"{dish_id}_{ttk_id}_{safe_name}.md"
+        elif ttk_name:
+            safe_ttk_name = "".join(c for c in ttk_name if c.isalnum() or c in (' ', '-', '_')).strip()
+            safe_ttk_name = safe_ttk_name.replace(' ', '_')
+            filename = f"{dish_id}_{safe_ttk_name}_{safe_name}.md"
+        else:
+            # Старый формат для обратной совместимости
+            filename = f"{dish_id}_{safe_name}.md"
+        
         return self.repo_path / 'ttk' / filename
     
-    def read_file(self, dish_id: int, dish_name: str) -> Optional[str]:
+    def read_file(self, dish_id: int, dish_name: str, ttk_id: int = None, ttk_name: str = None) -> Optional[str]:
         """
         Читает содержимое файла ТТК из репозитория.
         
         Args:
             dish_id: ID блюда
             dish_name: Название блюда
+            ttk_id: ID ТТК (опционально)
+            ttk_name: Название ТТК (опционально)
         
         Returns:
             Содержимое файла или None, если файл не найден
         """
-        file_path = self.get_file_path(dish_id, dish_name)
+        file_path = self.get_file_path(dish_id, dish_name, ttk_id=ttk_id, ttk_name=ttk_name)
         if file_path.exists():
             try:
                 return file_path.read_text(encoding='utf-8')
@@ -116,7 +131,7 @@ class TTKGitRepository:
                 return None
         return None
     
-    def write_file(self, dish_id: int, dish_name: str, content: str, commit_message: str, author_name: Optional[str] = None, author_email: Optional[str] = None) -> bool:
+    def write_file(self, dish_id: int, dish_name: str, content: str, commit_message: str, author_name: Optional[str] = None, author_email: Optional[str] = None, ttk_id: int = None, ttk_name: str = None) -> bool:
         """
         Записывает содержимое в файл ТТК и создает коммит.
         
@@ -127,11 +142,13 @@ class TTKGitRepository:
             commit_message: Сообщение коммита
             author_name: Имя автора (опционально)
             author_email: Email автора (опционально)
+            ttk_id: ID ТТК (опционально)
+            ttk_name: Название ТТК (опционально)
         
         Returns:
             True если успешно, False в противном случае
         """
-        file_path = self.get_file_path(dish_id, dish_name)
+        file_path = self.get_file_path(dish_id, dish_name, ttk_id=ttk_id, ttk_name=ttk_name)
         
         # Создаем директорию, если её нет
         file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -179,7 +196,7 @@ class TTKGitRepository:
             logger.error(f"Error writing file {file_path}: {e}")
             return False
     
-    def get_file_history(self, dish_id: int, dish_name: str, limit: int = 10) -> List[Dict]:
+    def get_file_history(self, dish_id: int, dish_name: str, limit: int = 10, ttk_id: int = None, ttk_name: str = None) -> List[Dict]:
         """
         Получает историю изменений файла ТТК из Git.
         
@@ -187,11 +204,13 @@ class TTKGitRepository:
             dish_id: ID блюда
             dish_name: Название блюда
             limit: Максимальное количество записей
+            ttk_id: ID ТТК (опционально)
+            ttk_name: Название ТТК (опционально)
         
         Returns:
             Список словарей с информацией о коммитах
         """
-        file_path = self.get_file_path(dish_id, dish_name)
+        file_path = self.get_file_path(dish_id, dish_name, ttk_id=ttk_id, ttk_name=ttk_name)
         relative_path = file_path.relative_to(self.repo_path)
         
         if not file_path.exists():

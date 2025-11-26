@@ -1,6 +1,6 @@
 {% extends "chef/base.html" %}
 
-{% block title %}ТТК: {{ dish.name }} - Интерфейс повара{% endblock %}
+{% block title %}ТТК: {{ dish.name }} - {{ ttk.name }} - Интерфейс повара{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -135,11 +135,32 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endblock %}
 
 {% block content %}
-<a href="{% url 'chef:dish_detail' dish.id %}" class="back-link">← Назад к блюду</a>
+<div style="margin-bottom: 1rem;">
+    <a href="{% url 'chef:dashboard' %}" class="back-link">← Назад к списку блюд</a>
+    <a href="{% url 'chef:dish_detail' dish.id %}" class="back-link" style="margin-left: 1rem;">← Назад к блюду</a>
+</div>
+
+{% if all_ttks|length > 1 %}
+<div class="card" style="margin-bottom: 1rem; background-color: #f9f9f9;">
+    <h4 style="margin-top: 0;">Выбрать ТТК:</h4>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        {% for other_ttk in all_ttks %}
+        <a href="{% url 'chef:ttk_view' dish.id other_ttk.id %}" 
+           class="btn btn-sm {% if other_ttk.id == ttk.id %}btn-primary{% else %}btn-secondary{% endif %}"
+           style="{% if other_ttk.active %}font-weight: bold;{% endif %}">
+            {{ other_ttk.name }}{% if other_ttk.active %} ✓{% endif %}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 
 <div class="card">
     <div class="ttk-header">
-        <h2>ТТК: {{ dish.name }}</h2>
+        <div>
+            <h2 style="margin: 0;">{{ dish.name }}</h2>
+            <p style="margin: 0.5rem 0 0 0; color: #7f8c8d; font-size: 0.9rem;">ТТК: {{ ttk.name }}{% if ttk.version %} (версия {{ ttk.version }}){% endif %}</p>
+        </div>
         <div>
             {% if ttk.ttk_file %}
             <a href="{{ ttk.ttk_file.url }}" class="btn btn-secondary" target="_blank">Скачать файл</a>
