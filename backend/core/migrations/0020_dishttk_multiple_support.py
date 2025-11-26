@@ -73,10 +73,16 @@ class Migration(migrations.Migration):
             ),
         ),
         # Изменяем OneToOneField на ForeignKey
-        # Используем RunSQL для изменения ограничения уникальности в БД
+        # Используем RunSQL для удаления уникального ограничения в MySQL
         migrations.RunSQL(
-            # Удаляем уникальное ограничение для menu_item_id
-            sql="ALTER TABLE dish_ttk DROP INDEX IF EXISTS dish_ttk_menu_item_id_unique;",
+            # Удаляем уникальное ограничение для menu_item_id (MySQL синтаксис)
+            sql=[
+                "SET @exist := (SELECT COUNT(*) FROM information_schema.table_constraints WHERE table_schema = DATABASE() AND table_name = 'dish_ttk' AND constraint_name = 'dish_ttk_menu_item_id_unique');",
+                "SET @sqlstmt := IF(@exist > 0, 'ALTER TABLE dish_ttk DROP INDEX dish_ttk_menu_item_id_unique', 'SELECT 1');",
+                "PREPARE stmt FROM @sqlstmt;",
+                "EXECUTE stmt;",
+                "DEALLOCATE PREPARE stmt;",
+            ],
             reverse_sql=migrations.RunSQL.noop,
         ),
         # Теперь изменяем поле через AlterField
