@@ -45,3 +45,15 @@ archive/
 # deploy archives
 *.tar.gz
 backend/venv_test/
+
+# Python
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.log
