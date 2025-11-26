@@ -23,6 +23,7 @@ openai==1.12.0
 # Утилиты
 python-dotenv==1.0.0
 Pillow==10.2.0
+markdown==3.5.1
 
 # Безопасность
 cryptography==42.0.2
