@@ -122,25 +122,29 @@ export default function MenuItemModal({ item, isOpen, onClose }: MenuItemModalPr
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - клик вне модального окна закрывает его */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
             className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
+            aria-label="Close modal on backdrop click"
           />
 
-          {/* Modal */}
+          {/* Modal - предотвращаем закрытие при клике внутри модального окна */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ type: "spring", duration: 0.3 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col md:flex-row">
+            <div 
+              className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col md:flex-row pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               {/* Left: Images */}
               <div className="relative w-full md:w-1/2 h-64 md:h-auto bg-gradient-to-br from-saffron-200 to-warm-400">
                 {allImages.length > 0 ? (
@@ -205,10 +209,10 @@ export default function MenuItemModal({ item, isOpen, onClose }: MenuItemModalPr
 
               {/* Right: Content */}
               <div className="w-full md:w-1/2 p-6 md:p-8 overflow-y-auto relative">
-                {/* Close Button - фиксированная позиция в правом верхнем углу */}
+                {/* Close Button - всегда фиксированная позиция, не скролится */}
                 <button
                   onClick={onClose}
-                  className="fixed top-4 right-4 md:absolute md:top-6 md:right-6 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all z-50"
+                  className="fixed top-4 right-4 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg transition-all z-[60]"
                   aria-label="Close modal"
                 >
                   <X className="w-5 h-5 text-charcoal-900" />
