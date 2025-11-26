@@ -537,7 +537,9 @@ class DishTTK(models.Model):
     ttk_file = models.FileField(
         upload_to='ttk/',
         verbose_name='Файл ТТК (.md)',
-        help_text='Загрузите файл технико-технологической карты в формате Markdown (.md)'
+        help_text='Загрузите файл технико-технологической карты в формате Markdown (.md)',
+        blank=True,
+        null=True
     )
     version = models.CharField(
         max_length=50,
@@ -576,9 +578,25 @@ class DishTTK(models.Model):
     
     def get_file_name(self):
         """Возвращает имя файла без пути."""
-        if self.ttk_file:
+        from django.conf import settings
+        if settings.TTK_USE_GIT:
+            from .git_utils import TTKGitRepository
+            repo = TTKGitRepository(settings.TTK_GIT_REPO_PATH)
+            file_path = repo.get_file_path(self.menu_item.id, self.menu_item.name)
+            return file_path.name
+        elif self.ttk_file:
             return self.ttk_file.name.split('/')[-1]
         return None
+    
+    def get_git_repo(self):
+        """Возвращает экземпляр Git репозитория для работы с ТТК."""
+        from django.conf import settings
+        from .git_utils import TTKGitRepository
+        return TTKGitRepository(
+            settings.TTK_GIT_REPO_PATH,
+            settings.TTK_GIT_USER_NAME,
+            settings.TTK_GIT_USER_EMAIL
+        )
 
 
 class TTKVersionHistory(models.Model):
