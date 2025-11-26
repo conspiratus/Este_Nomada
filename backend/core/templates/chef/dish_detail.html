@@ -1,0 +1,60 @@
+{% extends "chef/base.html" %}
+
+{% block title %}{{ dish.name }} - Интерфейс повара{% endblock %}
+
+{% block content %}
+<a href="{% url 'chef:dashboard' %}" class="back-link">← Назад к списку блюд</a>
+
+<div class="card">
+    <h2>{{ dish.name }}</h2>
+    <div style="margin-bottom: 1rem;">
+        <strong>Категория:</strong> {{ dish.category }}
+    </div>
+    {% if dish.price %}
+    <div style="margin-bottom: 1rem;">
+        <strong>Цена:</strong> {{ dish.price }} €
+    </div>
+    {% endif %}
+    {% if dish.description %}
+    <div style="margin-bottom: 1.5rem;">
+        <strong>Описание:</strong>
+        <div style="margin-top: 0.5rem;">{{ dish.description|safe }}</div>
+    </div>
+    {% endif %}
+
+    <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #ddd;">
+        <h3>Технико-технологическая карта (ТТК)</h3>
+        {% if ttk and ttk.active %}
+        <div style="margin-top: 1rem;">
+            <div style="margin-bottom: 0.5rem;">
+                <strong>Файл:</strong> {{ ttk.get_file_name }}
+            </div>
+            {% if ttk.version %}
+            <div style="margin-bottom: 0.5rem;">
+                <strong>Версия:</strong> {{ ttk.version }}
+            </div>
+            {% endif %}
+            {% if ttk.notes %}
+            <div style="margin-bottom: 1rem;">
+                <strong>Примечания:</strong> {{ ttk.notes }}
+            </div>
+            {% endif %}
+            <div style="margin-bottom: 0.5rem;">
+                <strong>Дата обновления:</strong> {{ ttk.updated_at|date:"d.m.Y H:i" }}
+            </div>
+            <div style="margin-top: 1rem;">
+                <a href="{% url 'chef:ttk_view' dish.id %}" class="btn">Просмотр ТТК</a>
+                {% if ttk.ttk_file %}
+                <a href="{{ ttk.ttk_file.url }}" class="btn btn-secondary" target="_blank" style="margin-left: 0.5rem;">Скачать файл</a>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div style="margin-top: 1rem; color: #7f8c8d;">
+            ТТК для этого блюда не загружена или неактивна.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

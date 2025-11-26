@@ -1,0 +1,26 @@
+[Unit]
+Description=Este Nómada Next.js Frontend
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/estenomada
+Environment="NODE_ENV=production"
+Environment="PORT=3000"
+Environment="HOSTNAME=0.0.0.0"
+Environment="NEXT_TELEMETRY_DISABLED=1"
+EnvironmentFile=/var/www/estenomada/.env.production
+ExecStart=/usr/bin/npm start
+StandardOutput=journal
+StandardError=journal
+Restart=always
+RestartSec=10
+# Ограничения ресурсов
+LimitNOFILE=65536
+MemoryLimit=2G
+
+[Install]
+WantedBy=multi-user.target
+

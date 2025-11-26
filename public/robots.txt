@@ -1,0 +1,16 @@
+# robots.txt для Este Nómada / Nómada del Este
+# Разрешено индексировать все страницы
+
+User-agent: *
+Allow: /
+
+# Запрещаем индексировать админку и API
+Disallow: /admin/
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://estenomada.es/sitemap.xml
+Sitemap: https://nomadadeleste.es/sitemap.xml
+Sitemap: https://nomadadeleste.com/sitemap.xml
+
+

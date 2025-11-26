@@ -1,0 +1,24 @@
+[Unit]
+Description=Este Nómada Celery Beat
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/estenomada/backend
+Environment="PATH=/var/www/estenomada/backend/venv/bin"
+EnvironmentFile=/var/www/estenomada/backend/.env.production
+ExecStart=/var/www/estenomada/backend/venv/bin/celery \
+    -A este_nomada beat \
+    --loglevel=info \
+    --logfile=/var/www/estenomada/backend/logs/celery-beat.log
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+

@@ -1,0 +1,90 @@
+{
+  "common": {
+    "main": "Principal",
+    "menu": "Menú",
+    "ourDishes": "Nuestros Platos",
+    "stories": "Historias",
+    "order": "Pedido",
+    "about": "Sobre Nosotros",
+    "contact": "Contacto"
+  },
+  "hero": {
+    "title": "Este Nómada",
+    "subtitle": "Cocina del Este, nacida en el camino",
+    "description": "Sabores auténticos de Asia Central, preparados con amor y tradición",
+    "readMore": "Leer historias",
+    "telegramChannel": "Canal de Telegram"
+  },
+  "about": {
+    "title": "Sobre Este Nómada",
+    "description": "Somos viajeros que llevamos el calor del hogar en cada plato. Nuestras recetas han sido transmitidas de generación en generación, y cada comida cuenta una historia de viajes, encuentros y tradiciones.",
+    "mission": "Nuestra Misión",
+    "missionText": "Compartir la cocina auténtica del Este con todos los que encontramos en nuestro camino, preservando tradiciones y creando nuevos recuerdos."
+  },
+  "menu": {
+    "title": "Menú",
+    "subtitle": "Cada plato está preparado con amor y según recetas tradicionales",
+    "category": "Categoría",
+    "price": "Precio",
+    "otherImages": "Otras imágenes",
+    "attributes": "Características",
+    "relatedStories": "Historias Relacionadas"
+  },
+  "stories": {
+    "title": "Historias en el Camino",
+    "subtitle": "Historias sobre nuestro viaje, platos y personas que encontramos en el camino",
+    "readMore": "Leer más",
+    "allStories": "Todas las historias",
+    "back": "← Todas las historias"
+  },
+  "pathMap": {
+    "title": "Mapa de Ruta",
+    "quote": "Cada plato es un punto en nuestro viaje"
+  },
+  "order": {
+    "title": "Hacer un Pedido",
+    "subtitle": "Complete el formulario y nos pondremos en contacto con usted para confirmar su pedido",
+    "name": "Nombre",
+    "namePlaceholder": "Su nombre",
+    "phone": "Teléfono",
+    "phonePlaceholder": "+34 XXX XXX XXX",
+    "dishes": "Seleccionar platos",
+    "selectedDishes": "Platos seleccionados",
+    "total": "Total",
+    "comment": "Comentario",
+    "commentPlaceholder": "Solicitudes especiales, hora de entrega, etc.",
+    "submit": "Enviar pedido",
+    "success": "¡Gracias por su pedido!",
+    "successMessage": "Su formulario ha sido enviado con éxito. Nos pondremos en contacto con usted pronto.",
+    "formComingSoon": "Formulario Próximamente",
+    "formComingSoonText": "Estamos trabajando en el sistema de pedidos. Por ahora, póngase en contacto con nosotros a través de Telegram o Email para realizar un pedido.",
+    "writeTelegram": "Escribir en Telegram",
+    "writeEmail": "Escribir por Email",
+    "noDishes": "No hay platos disponibles",
+    "loading": "Cargando platos..."
+  },
+  "footer": {
+    "contact": "Contacto",
+    "email": "Email",
+    "telegram": "Telegram",
+    "telegramChannel": "Canal de Telegram",
+    "location": "Estamos ubicados",
+    "locationText": "Asturias, España",
+    "madeIn": "Hecho en Asturias",
+    "rights": "Todos los derechos reservados",
+    "description": "Cocina del Este, nacida en el camino"
+  },
+  "admin": {
+    "login": "Panel de Administración",
+    "username": "Nombre de usuario",
+    "password": "Contraseña",
+    "loginButton": "Iniciar sesión",
+    "dashboard": "Panel",
+    "stories": "Historias",
+    "menu": "Menú",
+    "settings": "Configuración",
+    "telegram": "Telegram",
+    "logout": "Cerrar sesión"
+  }
+}
+

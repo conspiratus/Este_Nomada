@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-sand-50 text-charcoal-900 antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Плавные переходы */
+* {
+  @apply transition-colors duration-200;
+}
+
+/* Кастомные стили для винтажных элементов */
+.vintage-border {
+  @apply border-2 border-warm-300 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.1)];
+}
+
+
+
+
