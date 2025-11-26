@@ -253,18 +253,7 @@ jobs:
               if echo "$MIGRATE_OUTPUT" | grep -qi "connection\|database\|mysql\|access denied"; then
                 echo "⚠️  Похоже на проблему с подключением к БД"
                 echo "Проверяю настройки БД..."
-                sudo -u www-data venv/bin/python -c "
-import os
-import sys
-sys.path.insert(0, '.')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'este_nomada.settings')
-import django
-django.setup()
-from django.conf import settings
-print('DB_NAME:', settings.DATABASES['default'].get('NAME', 'NOT SET'))
-print('DB_USER:', settings.DATABASES['default'].get('USER', 'NOT SET'))
-print('DB_HOST:', settings.DATABASES['default'].get('HOST', 'NOT SET'))
-" 2>&1 || true
+                sudo -u www-data venv/bin/python -c "import os; import sys; sys.path.insert(0, '.'); os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'este_nomada.settings'); import django; django.setup(); from django.conf import settings; print('DB_NAME:', settings.DATABASES['default'].get('NAME', 'NOT SET')); print('DB_USER:', settings.DATABASES['default'].get('USER', 'NOT SET')); print('DB_HOST:', settings.DATABASES['default'].get('HOST', 'NOT SET'))" 2>&1 || true
               fi
               
               echo ""
