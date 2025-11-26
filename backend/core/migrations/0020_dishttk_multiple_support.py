@@ -13,7 +13,7 @@ def fill_name_field(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0018_remove_ttk_comments'),
+        ('core', '0019_merge_ttk_migrations'),
     ]
 
     operations = [
