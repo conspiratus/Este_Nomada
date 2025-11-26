@@ -7,7 +7,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
 from django.views.decorators.http import require_http_methods
-from .models import MenuItem, DishTTK, TTKVersionHistory
+from django.conf import settings
+from .models import MenuItem, DishTTK
 from .forms import TTKEditForm
 import markdown
 import os
@@ -111,22 +112,41 @@ def chef_ttk_view(request, dish_id):
     # Читаем содержимое .md файла
     ttk_content = None
     html_content = None
-    if ttk.ttk_file:
-        try:
-            with open(ttk.ttk_file.path, 'r', encoding='utf-8') as f:
-                ttk_content = f.read()
-            # Конвертируем markdown в HTML
-            html_content = markdown.markdown(ttk_content)
-        except Exception as e:
-            messages.error(request, f'Ошибка при чтении файла ТТК: {str(e)}')
+    version_history = []
     
-    # Получаем историю версий
-    version_history = TTKVersionHistory.objects.filter(ttk=ttk).select_related('changed_by').order_by('-created_at')[:10]
+    if settings.TTK_USE_GIT:
+        # Используем Git репозиторий
+        try:
+            repo = ttk.get_git_repo()
+            ttk_content = repo.read_file(dish.id, dish.name)
+            if ttk_content:
+                html_content = markdown.markdown(ttk_content)
+                # Получаем историю из Git
+                git_history = repo.get_file_history(dish.id, dish.name, limit=10)
+                version_history = [
+                    {
+                        'version': f"commit {item['hash'][:7]}",
+                        'changed_by_name': item['author_name'],
+                        'created_at': item['date'],
+                        'change_description': item['message'],
+                    }
+                    for item in git_history
+                ]
+        except Exception as e:
+            messages.error(request, f'Ошибка при чтении ТТК из Git: {str(e)}')
+    else:
+        # Используем старый способ через FileField
+        if ttk.ttk_file:
+            try:
+                with open(ttk.ttk_file.path, 'r', encoding='utf-8') as f:
+                    ttk_content = f.read()
+                html_content = markdown.markdown(ttk_content)
+            except Exception as e:
+                messages.error(request, f'Ошибка при чтении файла ТТК: {str(e)}')
     
     # Форма для редактирования
     edit_form = TTKEditForm(initial={
-        'content': ttk_content,
-        'version': ttk.version,
+        'content': ttk_content or '',
     })
     
     context = {
@@ -137,6 +157,7 @@ def chef_ttk_view(request, dish_id):
         'version_history': version_history,
         'edit_form': edit_form,
         'user': request.user,
+        'use_git': settings.TTK_USE_GIT,
     }
     
     return render(request, 'chef/ttk_view.html', context)
@@ -157,38 +178,44 @@ def chef_ttk_edit(request, dish_id):
     
     if form.is_valid():
         new_content = form.cleaned_data['content']
-        new_version = form.cleaned_data.get('version', '').strip()
         change_description = form.cleaned_data.get('change_description', '').strip()
         
+        # Формируем сообщение коммита
+        if change_description:
+            commit_message = f"{dish.name}: {change_description}"
+        else:
+            commit_message = f"Обновление ТТК: {dish.name}"
+        
         try:
-            # Сохраняем текущую версию в историю, если указана новая версия
-            if new_version and new_version != ttk.version:
-                # Читаем текущее содержимое файла
-                current_content = ''
-                if ttk.ttk_file:
-                    try:
-                        with open(ttk.ttk_file.path, 'r', encoding='utf-8') as f:
-                            current_content = f.read()
-                    except Exception:
-                        pass
+            if settings.TTK_USE_GIT:
+                # Используем Git репозиторий
+                repo = ttk.get_git_repo()
+                author_name = request.user.get_full_name() or request.user.username
+                author_email = request.user.email or settings.TTK_GIT_USER_EMAIL
                 
-                TTKVersionHistory.objects.create(
-                    ttk=ttk,
-                    version=ttk.version or '1.0',
-                    content=current_content,
-                    changed_by=request.user,
-                    change_description=change_description
+                success = repo.write_file(
+                    dish.id,
+                    dish.name,
+                    new_content,
+                    commit_message,
+                    author_name=author_name,
+                    author_email=author_email
                 )
-                ttk.version = new_version
-            
-            # Сохраняем новое содержимое в файл
-            if ttk.ttk_file:
-                with open(ttk.ttk_file.path, 'w', encoding='utf-8') as f:
-                    f.write(new_content)
-                ttk.save()
-                messages.success(request, 'ТТК успешно обновлена.')
+                
+                if success:
+                    ttk.save()  # Обновляем updated_at
+                    messages.success(request, 'ТТК успешно обновлена и закоммичена в Git.')
+                else:
+                    messages.error(request, 'Ошибка при сохранении ТТК в Git.')
             else:
-                messages.error(request, 'Файл ТТК не найден.')
+                # Используем старый способ через FileField
+                if ttk.ttk_file:
+                    with open(ttk.ttk_file.path, 'w', encoding='utf-8') as f:
+                        f.write(new_content)
+                    ttk.save()
+                    messages.success(request, 'ТТК успешно обновлена.')
+                else:
+                    messages.error(request, 'Файл ТТК не найден.')
         except Exception as e:
             messages.error(request, f'Ошибка при сохранении ТТК: {str(e)}')
     else:

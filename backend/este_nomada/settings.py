@@ -206,6 +206,12 @@ INSTAGRAM_APP_ID = env('INSTAGRAM_APP_ID', default='')
 INSTAGRAM_APP_SECRET = env('INSTAGRAM_APP_SECRET', default='')
 INSTAGRAM_ACCESS_TOKEN = env('INSTAGRAM_ACCESS_TOKEN', default='')
 
+# TTK Git Repository Settings
+TTK_GIT_REPO_PATH = env('TTK_GIT_REPO_PATH', default=os.path.join(BASE_DIR, 'ttk_repo'))
+TTK_GIT_USER_NAME = env('TTK_GIT_USER_NAME', default='Este Nomada Chef')
+TTK_GIT_USER_EMAIL = env('TTK_GIT_USER_EMAIL', default='chef@estenomada.es')
+TTK_USE_GIT = env.bool('TTK_USE_GIT', default=True)  # Переключение между Git и FileField
+
 # Logging
 # Создаём директорию для логов, если её нет
 logs_dir = os.path.join(BASE_DIR, 'logs')

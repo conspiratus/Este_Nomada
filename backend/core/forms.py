@@ -15,24 +15,14 @@ class TTKEditForm(forms.Form):
         label='Содержимое ТТК',
         help_text='Отредактируйте содержимое ТТК в формате Markdown'
     )
-    version = forms.CharField(
-        max_length=50,
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Например: 1.1, 2024-02'
-        }),
-        label='Новая версия',
-        help_text='Укажите номер новой версии (оставьте пустым, чтобы не создавать новую версию)'
-    )
     change_description = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={
             'class': 'form-control',
             'rows': 3,
-            'placeholder': 'Опишите, что было изменено в этой версии'
+            'placeholder': 'Опишите, что было изменено (будет использовано как сообщение коммита)'
         }),
         label='Описание изменений',
-        help_text='Краткое описание изменений в этой версии'
+        help_text='Краткое описание изменений (будет сохранено в Git как сообщение коммита)'
     )
 

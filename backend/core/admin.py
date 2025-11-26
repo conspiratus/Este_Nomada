@@ -574,13 +574,29 @@ class DishTTKAdmin(admin.ModelAdmin):
     
     def file_preview(self, obj):
         """Предпросмотр информации о файле."""
-        if obj and obj.ttk_file:
-            file_name = obj.get_file_name()
-            file_url = obj.ttk_file.url if obj.ttk_file else None
-            if file_url:
-                return format_html('<a href="{}" target="_blank">{}</a>', file_url, file_name)
-            return file_name
-        return 'Файл не загружен'
+        from django.conf import settings
+        if settings.TTK_USE_GIT:
+            # Показываем информацию о Git
+            if obj:
+                repo = obj.get_git_repo()
+                file_name = obj.get_file_name()
+                if repo.file_exists(obj.menu_item.id, obj.menu_item.name):
+                    return format_html(
+                        '<strong>Git:</strong> {}<br><small>Путь: {}</small>',
+                        file_name,
+                        repo.get_file_path(obj.menu_item.id, obj.menu_item.name)
+                    )
+                return 'Файл не найден в Git'
+            return 'Файл не загружен'
+        else:
+            # Старый способ через FileField
+            if obj and obj.ttk_file:
+                file_name = obj.get_file_name()
+                file_url = obj.ttk_file.url if obj.ttk_file else None
+                if file_url:
+                    return format_html('<a href="{}" target="_blank">{}</a>', file_url, file_name)
+                return file_name
+            return 'Файл не загружен'
     file_preview.short_description = 'Файл ТТК'
 
 

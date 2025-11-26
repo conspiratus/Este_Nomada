@@ -148,8 +148,12 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 
     <div class="ttk-meta">
+        {% if use_git %}
+        <div><strong>Хранилище:</strong> Git репозиторий</div>
+        {% else %}
         {% if ttk.version %}
         <div><strong>Версия:</strong> {{ ttk.version }}</div>
+        {% endif %}
         {% endif %}
         <div><strong>Обновлено:</strong> {{ ttk.updated_at|date:"d.m.Y H:i" }}</div>
     </div>
@@ -185,16 +189,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 {{ edit_form.content }}
             </div>
             <div class="form-group">
-                <label>{{ edit_form.version.label }}</label>
-                {{ edit_form.version }}
-                <small class="form-text text-muted">{{ edit_form.version.help_text }}</small>
-            </div>
-            <div class="form-group">
                 <label>{{ edit_form.change_description.label }}</label>
                 {{ edit_form.change_description }}
                 <small class="form-text text-muted">{{ edit_form.change_description.help_text }}</small>
             </div>
-            <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+            <button type="submit" class="btn btn-primary">Сохранить изменения{% if use_git %} в Git{% endif %}</button>
         </form>
     </div>
 
@@ -204,17 +203,21 @@ document.addEventListener('DOMContentLoaded', function() {
             {% if version_history %}
                 {% for version in version_history %}
                 <div class="version-item">
-                    <div><strong>Версия {{ version.version }}</strong></div>
+                    <div><strong>{{ version.version }}</strong></div>
                     <div class="text-muted">
-                        {% if version.changed_by %}
+                        {% if version.changed_by_name %}
+                        Изменено: {{ version.changed_by_name }}
+                        {% elif version.changed_by %}
                         Изменено: {{ version.changed_by.get_full_name|default:version.changed_by.username }}
                         {% endif %}
                         <br>
+                        {% if version.created_at %}
                         {{ version.created_at|date:"d.m.Y H:i" }}
+                        {% endif %}
                     </div>
                     {% if version.change_description %}
                     <div style="margin-top: 0.5rem;">
-                        <strong>Изменения:</strong> {{ version.change_description }}
+                        <strong>Сообщение коммита:</strong> {{ version.change_description }}
                     </div>
                     {% endif %}
                 </div>
