@@ -202,16 +202,16 @@ def chef_ttk_edit(request, dish_id, ttk_id):
                 author_name = request.user.get_full_name() or request.user.username
                 author_email = request.user.email or settings.TTK_GIT_USER_EMAIL
                 
-                    success = repo.write_file(
-                        dish.id,
-                        dish.name,
-                        new_content,
-                        commit_message,
-                        author_name=author_name,
-                        author_email=author_email,
-                        ttk_id=ttk.id,
-                        ttk_name=ttk.name
-                    )
+                success = repo.write_file(
+                    dish.id,
+                    dish.name,
+                    new_content,
+                    commit_message,
+                    author_name=author_name,
+                    author_email=author_email,
+                    ttk_id=ttk.id,
+                    ttk_name=ttk.name
+                )
                 
                 if success:
                     ttk.save()  # Обновляем updated_at
