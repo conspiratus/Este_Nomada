@@ -1,7 +1,11 @@
 # Generated manually to merge conflicting migrations
-# This migration was created to resolve conflicts between server and code migrations
-# On server there was 0018_ttkcomment_ttkversionhistory, but in code we have 0019_remove_ttk_comments
-# Since 0018_ttkcomment_ttkversionhistory doesn't exist in code, we only depend on 0019_remove_ttk_comments
+# This migration merges:
+# - 0018_ttkcomment_ttkversionhistory (exists only on server)
+# - 0018_remove_ttk_comments (old version on server, renamed to 0019 in code)
+# - 0019_remove_ttk_comments (current version in code)
+# 
+# On server: both 0018_ttkcomment_ttkversionhistory and 0018_remove_ttk_comments exist
+# In code: only 0019_remove_ttk_comments exists (renamed from 0018)
 
 from django.db import migrations
 
@@ -9,7 +13,9 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0019_remove_ttk_comments'),
+        ('core', '0019_remove_ttk_comments'),  # Current version in code
+        # Note: 0018_ttkcomment_ttkversionhistory and 0018_remove_ttk_comments 
+        # exist only on server and will be handled there
     ]
 
     operations = [
