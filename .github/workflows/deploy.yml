@@ -120,8 +120,18 @@ jobs:
             echo "📥 Распаковываем новый код..."
             sudo mkdir -p $DEPLOY_DIR
             cd /tmp
+            if [ ! -f "deploy.tar.gz" ]; then
+              echo "❌ Ошибка: deploy.tar.gz не найден!"
+              exit 1
+            fi
+            echo "Размер архива: $(du -h deploy.tar.gz)"
             sudo tar -xzf deploy.tar.gz -C $DEPLOY_DIR
+            if [ $? -ne 0 ]; then
+              echo "❌ Ошибка при распаковке!"
+              exit 1
+            fi
             sudo rm deploy.tar.gz
+            echo "✅ Код распакован"
             
             # Устанавливаем права
             echo "🔐 Устанавливаем права..."
@@ -158,8 +168,15 @@ jobs:
             
             # Устанавливаем зависимости используя python -m pip (надежнее)
             echo "Устанавливаю pip и зависимости..."
-            sudo -u www-data venv/bin/python -m pip install --upgrade pip
-            sudo -u www-data venv/bin/python -m pip install --no-cache-dir -r requirements.txt
+            if ! sudo -u www-data venv/bin/python -m pip install --upgrade pip; then
+              echo "❌ Ошибка при обновлении pip"
+              exit 1
+            fi
+            if ! sudo -u www-data venv/bin/python -m pip install --no-cache-dir -r requirements.txt; then
+              echo "❌ Ошибка при установке зависимостей"
+              exit 1
+            fi
+            echo "✅ Зависимости установлены"
             
             # Backend: применяем миграции
             echo "🗄️  Применяем миграции Django..."
