@@ -4,6 +4,12 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
+def fill_name_field(apps, schema_editor):
+    """Заполняет поле name для существующих записей."""
+    DishTTK = apps.get_model('core', 'DishTTK')
+    DishTTK.objects.all().update(name='Основная версия')
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -35,10 +41,6 @@ class Migration(migrations.Migration):
             ),
         ),
         # Заполняем name для существующих записей
-        def fill_name_field(apps, schema_editor):
-            DishTTK = apps.get_model('core', 'DishTTK')
-            DishTTK.objects.all().update(name='Основная версия')
-        
         migrations.RunPython(
             fill_name_field,
             reverse_code=migrations.RunPython.noop,
