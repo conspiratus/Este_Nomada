@@ -122,31 +122,36 @@ jobs:
             echo "📦 Устанавливаем Python зависимости..."
             cd $BACKEND_DIR
             
-            # Создаем venv если его нет
-            if [ ! -d "venv" ]; then
-              echo "Создаю виртуальное окружение..."
-              sudo -u www-data python3 -m venv venv
+            # Проверяем Python
+            PYTHON_CMD=$(which python3 || which python)
+            echo "Используем Python: $PYTHON_CMD"
+            
+            # Создаем venv если его нет или пересоздаем если битый
+            if [ ! -d "venv" ] || [ ! -f "venv/bin/pip" ]; then
+              echo "Создаю/пересоздаю виртуальное окружение..."
+              sudo rm -rf venv
+              sudo -u www-data $PYTHON_CMD -m venv venv
             fi
             
-            # Проверяем что venv создан
+            # Проверяем что venv создан правильно
             if [ ! -f "venv/bin/pip" ]; then
-              echo "⚠️  venv не создан правильно, пересоздаю..."
-              sudo rm -rf venv
-              sudo -u www-data python3 -m venv venv
+              echo "❌ Ошибка: venv не создан правильно"
+              ls -la venv/bin/ || true
+              exit 1
             fi
             
             # Устанавливаем зависимости
             echo "Устанавливаю pip и зависимости..."
-            sudo -u www-data ./venv/bin/pip install --upgrade pip
-            sudo -u www-data ./venv/bin/pip install --no-cache-dir -r requirements.txt
+            sudo -u www-data bash -c "cd $BACKEND_DIR && source venv/bin/activate && pip install --upgrade pip"
+            sudo -u www-data bash -c "cd $BACKEND_DIR && source venv/bin/activate && pip install --no-cache-dir -r requirements.txt"
             
             # Backend: применяем миграции
             echo "🗄️  Применяем миграции Django..."
-            sudo -u www-data ./venv/bin/python manage.py migrate --noinput || echo "⚠️  Ошибка миграций, но продолжаем"
+            sudo -u www-data bash -c "cd $BACKEND_DIR && source venv/bin/activate && python manage.py migrate --noinput" || echo "⚠️  Ошибка миграций, но продолжаем"
             
             # Backend: собираем статику
             echo "📦 Собираем статику Django..."
-            sudo -u www-data ./venv/bin/python manage.py collectstatic --noinput || echo "⚠️  Ошибка collectstatic, но продолжаем"
+            sudo -u www-data bash -c "cd $BACKEND_DIR && source venv/bin/activate && python manage.py collectstatic --noinput" || echo "⚠️  Ошибка collectstatic, но продолжаем"
             
             # Frontend: устанавливаем зависимости
             echo "📦 Устанавливаем Node.js зависимости..."
