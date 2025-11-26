@@ -154,6 +154,15 @@ class TTKGitRepository:
                 logger.info(f"Файл {file_path} успешно закоммичен: {commit_message}")
                 # Пытаемся отправить в GitHub автоматически
                 try:
+                    # Сначала получаем изменения из GitHub
+                    fetch_result = self._run_git(['fetch', 'origin'])
+                    # Пытаемся синхронизировать (pull с rebase)
+                    pull_result = self._run_git(['pull', '--rebase', 'origin', 'main'])
+                    if pull_result.returncode != 0:
+                        # Если rebase не удался, пробуем обычный pull
+                        pull_result = self._run_git(['pull', 'origin', 'main', '--no-edit'])
+                    
+                    # Теперь отправляем
                     push_result = self._run_git(['push', 'origin', 'main'])
                     if push_result.returncode == 0:
                         logger.info(f"Коммит успешно отправлен в GitHub")
