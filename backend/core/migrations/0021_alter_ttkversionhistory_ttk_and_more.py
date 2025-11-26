@@ -8,6 +8,8 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0022_merge_0019_and_0020'),
+        # Note: On server, 0018_ttkcomment_ttkversionhistory also exists
+        # and will be merged in 0023_merge_0018_and_0021
     ]
 
     operations = [
