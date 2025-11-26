@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <!-- Вкладка редактирования -->
     <div id="tab-edit" class="ttk-tab-content">
-        <form method="post" action="{% url 'chef:ttk_edit' dish.id %}">
+        <form method="post" action="{% url 'chef:ttk_edit' dish.id ttk.id %}">
             {% csrf_token %}
             <div class="ttk-editor">
                 {{ edit_form.content }}
