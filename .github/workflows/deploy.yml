@@ -178,9 +178,18 @@ jobs:
             fi
             echo "✅ Зависимости установлены"
             
-            # Backend: применяем миграции
+            # Backend: создаем и применяем миграции
+            echo "🗄️  Создаем новые миграции Django..."
+            sudo -u www-data venv/bin/python manage.py makemigrations --noinput || echo "⚠️  Нет новых миграций для создания"
+            
             echo "🗄️  Применяем миграции Django..."
-            sudo -u www-data venv/bin/python manage.py migrate --noinput || echo "⚠️  Ошибка миграций, но продолжаем"
+            if ! sudo -u www-data venv/bin/python manage.py migrate --noinput; then
+              echo "❌ Ошибка при применении миграций!"
+              echo "Проверяю статус миграций..."
+              sudo -u www-data venv/bin/python manage.py showmigrations || true
+              exit 1
+            fi
+            echo "✅ Миграции применены успешно"
             
             # Backend: собираем статику
             echo "📦 Собираем статику Django..."
