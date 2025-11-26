@@ -93,19 +93,24 @@ class Migration(migrations.Migration):
                 ),
             ],
             database_operations=[
-                # Удаляем уникальное ограничение (если есть)
+                # Удаляем уникальное ограничение и внешний ключ (MySQL-совместимый способ)
                 migrations.RunSQL(
-                    sql="ALTER TABLE dish_ttk DROP INDEX IF EXISTS menu_item_id",
-                    reverse_sql=migrations.RunSQL.noop,
-                ),
-                # Удаляем внешний ключ и пересоздаем как обычный ForeignKey
-                migrations.RunSQL(
-                    sql=[
-                        "SET FOREIGN_KEY_CHECKS=0;",
-                        "ALTER TABLE dish_ttk DROP FOREIGN KEY IF EXISTS dish_ttk_menu_item_id_fk;",
-                        "ALTER TABLE dish_ttk DROP INDEX IF EXISTS menu_item_id;",
-                        "SET FOREIGN_KEY_CHECKS=1;",
-                    ],
+                    sql="""
+                        SET @dbname = DATABASE();
+                        SET @tablename = 'dish_ttk';
+                        SET @indexname = 'menu_item_id';
+                        SET @preparedStatement = (SELECT IF(
+                            (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS 
+                             WHERE table_schema = @dbname 
+                             AND table_name = @tablename 
+                             AND index_name = @indexname) > 0,
+                            CONCAT('ALTER TABLE ', @tablename, ' DROP INDEX ', @indexname),
+                            'SELECT 1'
+                        ));
+                        PREPARE stmt FROM @preparedStatement;
+                        EXECUTE stmt;
+                        DEALLOCATE PREPARE stmt;
+                    """,
                     reverse_sql=migrations.RunSQL.noop,
                 ),
             ],
