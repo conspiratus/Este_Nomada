@@ -1,16 +1,15 @@
-name: Deploy
+name: Deploy to Production
 
 on:
   push:
     branches: [ main, master ]
-    tags:
-      - 'v*'
+  workflow_dispatch:  # Позволяет запускать вручную через GitHub UI
 
 jobs:
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     
     steps:
       - name: Checkout code
@@ -22,7 +21,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
       
-      - name: Install dependencies
+      - name: Install frontend dependencies
         run: npm ci
       
       - name: Build frontend
@@ -30,8 +29,138 @@ jobs:
         env:
           NODE_ENV: production
       
-      - name: Deploy to server
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: './backend/requirements.txt'
+      
+      - name: Install Python dependencies
+        working-directory: ./backend
         run: |
-          echo "Add your deployment steps here"
-          # Example: rsync, scp, or deployment to your hosting provider
-
+          python -m pip install --upgrade pip
+          pip install --no-cache-dir -r requirements.txt
+      
+      - name: Check Django
+        working-directory: ./backend
+        run: python manage.py check
+        env:
+          DJANGO_SETTINGS_MODULE: este_nomada.settings
+          USE_SQLITE: 'True'  # Для CI используем SQLite
+      
+      - name: Create deployment archive
+        run: |
+          tar -czf deploy.tar.gz \
+            .next \
+            public \
+            package.json \
+            package-lock.json \
+            next.config.mjs \
+            server.js \
+            tsconfig.json \
+            middleware.ts \
+            i18n.ts \
+            lib \
+            app \
+            components \
+            types \
+            messages \
+            backend \
+            nginx \
+            systemd \
+            scripts \
+            prerender-manifest.json
+      
+      - name: Deploy to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          password: ${{ secrets.PROD_SERVER_PASSWORD }}
+          port: 22
+          source: "deploy.tar.gz"
+          target: "/tmp"
+      
+      - name: Extract and deploy on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          password: ${{ secrets.PROD_SERVER_PASSWORD }}
+          port: 22
+          script: |
+            set -e
+            
+            DEPLOY_DIR="/var/www/estenomada"
+            BACKEND_DIR="$DEPLOY_DIR/backend"
+            FRONTEND_DIR="$DEPLOY_DIR"
+            
+            echo "🚀 Начинаем деплой..."
+            
+            # Создаем бэкап текущей версии
+            if [ -d "$DEPLOY_DIR" ]; then
+              echo "📦 Создаю бэкап..."
+              sudo tar -czf /tmp/backup-$(date +%Y%m%d-%H%M%S).tar.gz -C $DEPLOY_DIR . 2>/dev/null || true
+            fi
+            
+            # Распаковываем новый код
+            echo "📥 Распаковываем новый код..."
+            sudo mkdir -p $DEPLOY_DIR
+            cd /tmp
+            sudo tar -xzf deploy.tar.gz -C $DEPLOY_DIR
+            sudo rm deploy.tar.gz
+            
+            # Устанавливаем права
+            echo "🔐 Устанавливаем права..."
+            sudo chown -R www-data:www-data $DEPLOY_DIR
+            sudo find $DEPLOY_DIR -type d -exec chmod 755 {} \;
+            sudo find $DEPLOY_DIR -type f -exec chmod 644 {} \;
+            sudo chmod +x $DEPLOY_DIR/scripts/*.sh 2>/dev/null || true
+            
+            # Backend: устанавливаем зависимости
+            echo "📦 Устанавливаем Python зависимости..."
+            cd $BACKEND_DIR
+            if [ ! -d "venv" ]; then
+              sudo -u www-data python3 -m venv venv
+            fi
+            sudo -u www-data venv/bin/pip install --upgrade pip
+            sudo -u www-data venv/bin/pip install --no-cache-dir -r requirements.txt
+            
+            # Backend: применяем миграции
+            echo "🗄️  Применяем миграции Django..."
+            sudo -u www-data venv/bin/python manage.py migrate --noinput || echo "⚠️  Ошибка миграций, но продолжаем"
+            
+            # Backend: собираем статику
+            echo "📦 Собираем статику Django..."
+            sudo -u www-data venv/bin/python manage.py collectstatic --noinput || echo "⚠️  Ошибка collectstatic, но продолжаем"
+            
+            # Frontend: устанавливаем зависимости
+            echo "📦 Устанавливаем Node.js зависимости..."
+            cd $FRONTEND_DIR
+            sudo -u www-data npm ci --production || sudo -u www-data npm install --production
+            
+            # Очищаем кэш Python
+            echo "🧹 Очищаем кэш Python..."
+            sudo find $BACKEND_DIR -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+            sudo find $BACKEND_DIR -name '*.pyc' -delete 2>/dev/null || true
+            
+            # Перезапускаем сервисы
+            echo "🔄 Перезапускаем сервисы..."
+            sudo systemctl restart estenomada-backend || echo "⚠️  Backend не перезапущен"
+            sudo systemctl restart estenomada-frontend || echo "⚠️  Frontend не перезапущен"
+            
+            # Перезагружаем Nginx
+            echo "🔄 Перезагружаем Nginx..."
+            sudo nginx -t && sudo systemctl reload nginx || echo "⚠️  Nginx не перезагружен"
+            
+            # Проверяем статус сервисов
+            echo "✅ Проверяем статус сервисов..."
+            sudo systemctl status estenomada-backend --no-pager | head -5 || true
+            sudo systemctl status estenomada-frontend --no-pager | head -5 || true
+            
+            echo "✅ Деплой завершен!"
+      
+      - name: Cleanup
+        if: always()
+        run: rm -f deploy.tar.gz
