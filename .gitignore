@@ -44,3 +44,4 @@ archive/
 
 # deploy archives
 *.tar.gz
+backend/venv_test/
