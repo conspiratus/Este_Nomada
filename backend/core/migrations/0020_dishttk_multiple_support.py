@@ -73,29 +73,23 @@ class Migration(migrations.Migration):
             ),
         ),
         # Изменяем OneToOneField на ForeignKey
-        # Используем RunSQL для удаления уникального ограничения в MySQL
+        # Сначала удаляем уникальное ограничение через RunSQL (безопасно для MySQL)
         migrations.RunSQL(
-            # Удаляем уникальное ограничение для menu_item_id (MySQL синтаксис)
-            sql=[
-                "SET @exist := (SELECT COUNT(*) FROM information_schema.table_constraints WHERE table_schema = DATABASE() AND table_name = 'dish_ttk' AND constraint_name = 'dish_ttk_menu_item_id_unique');",
-                "SET @sqlstmt := IF(@exist > 0, 'ALTER TABLE dish_ttk DROP INDEX dish_ttk_menu_item_id_unique', 'SELECT 1');",
-                "PREPARE stmt FROM @sqlstmt;",
-                "EXECUTE stmt;",
-                "DEALLOCATE PREPARE stmt;",
-            ],
+            sql="ALTER TABLE dish_ttk DROP INDEX menu_item_id",
             reverse_sql=migrations.RunSQL.noop,
-        ),
-        # Теперь изменяем поле через AlterField
-        migrations.AlterField(
-            model_name='dishttk',
-            name='menu_item',
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name='ttks',
-                to='core.menuitem',
-                verbose_name='Блюдо',
-                help_text='Выберите блюдо, для которого создается ТТК'
-            ),
+            state_operations=[
+                migrations.AlterField(
+                    model_name='dishttk',
+                    name='menu_item',
+                    field=models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name='ttks',
+                        to='core.menuitem',
+                        verbose_name='Блюдо',
+                        help_text='Выберите блюдо, для которого создается ТТК'
+                    ),
+                ),
+            ],
         ),
         # Создаем модель TTKVersionHistory
         migrations.CreateModel(
