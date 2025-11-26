@@ -172,7 +172,27 @@ class TTKGitRepository:
                 # Пытаемся отправить в GitHub автоматически
                 try:
                     # Сначала получаем изменения из GitHub
-                    fetch_result = self._run_git(['fetch', 'origin'])
+                    fetch_result = self._run_git(['fetch', 'origin', '--force'])
+                    
+                    # Проверяем, есть ли расхождение истории
+                    check_result = self._run_git(['rev-list', '--count', 'HEAD..origin/main'])
+                    behind_count = check_result.stdout.strip() if check_result.returncode == 0 else "0"
+                    
+                    check_result = self._run_git(['rev-list', '--count', 'origin/main..HEAD'])
+                    ahead_count = check_result.stdout.strip() if check_result.returncode == 0 else "0"
+                    
+                    # Если история расходится (есть коммиты и впереди, и позади), делаем reset
+                    if behind_count != "0" and ahead_count != "0":
+                        logger.warning(f"Обнаружено расхождение истории. Выполняю hard reset к origin/main...")
+                        reset_result = self._run_git(['reset', '--hard', 'origin/main'])
+                        if reset_result.returncode == 0:
+                            # Повторно добавляем и коммитим изменения
+                            self._run_git(['add', str(file_path.relative_to(self.repo_path))])
+                            commit_cmd = ['commit', '-m', commit_message]
+                            if author_name and author_email:
+                                commit_cmd.extend(['--author', f'{author_name} <{author_email}>'])
+                            self._run_git(commit_cmd)
+                    
                     # Пытаемся синхронизировать (pull с rebase)
                     pull_result = self._run_git(['pull', '--rebase', 'origin', 'main'])
                     if pull_result.returncode != 0:
