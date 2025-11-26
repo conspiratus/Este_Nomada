@@ -196,15 +196,17 @@ jobs:
               exit 1
             fi
             
+            # Очищаем и переустанавливаем зависимости (на случай проблем)
+            echo "Очищаю старые зависимости..."
+            sudo rm -rf node_modules package-lock.json 2>/dev/null || true
+            
             # Устанавливаем зависимости (нужны все, не только production, для server.js)
             echo "Устанавливаю все зависимости..."
-            if [ -f "package-lock.json" ]; then
-              if ! sudo -u www-data npm ci; then
-                echo "⚠️  npm ci не удался, пробую npm install..."
-                sudo -u www-data npm install || echo "⚠️  Ошибка npm install"
-              fi
-            else
-              sudo -u www-data npm install || echo "⚠️  Ошибка npm install"
+            if ! sudo -u www-data npm install; then
+              echo "❌ Ошибка при установке зависимостей"
+              echo "Пробую с правами root..."
+              sudo npm install || exit 1
+              sudo chown -R www-data:www-data node_modules package-lock.json 2>/dev/null || true
             fi
             
             # Проверяем что next установлен
