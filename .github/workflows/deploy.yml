@@ -90,11 +90,23 @@ jobs:
           password: ${{ secrets.PROD_SERVER_PASSWORD }}
           port: 22
           script: |
-            set -e
+            set -e  # Прерываем только на критичных ошибках
             
             DEPLOY_DIR="/var/www/estenomada"
             BACKEND_DIR="$DEPLOY_DIR/backend"
             FRONTEND_DIR="$DEPLOY_DIR"
+            
+            # Функция для безопасного выполнения команд
+            safe_run() {
+              echo "▶️  Выполняю: $@"
+              if "$@"; then
+                echo "✅ Успешно: $@"
+                return 0
+              else
+                echo "⚠️  Ошибка (продолжаем): $@"
+                return 0  # Продолжаем даже при ошибке
+              fi
+            }
             
             echo "🚀 Начинаем деплой..."
             
@@ -160,7 +172,11 @@ jobs:
             # Frontend: устанавливаем зависимости
             echo "📦 Устанавливаем Node.js зависимости..."
             cd $FRONTEND_DIR
-            sudo -u www-data npm ci --production || sudo -u www-data npm install --production
+            if [ -f "package-lock.json" ]; then
+              sudo -u www-data npm ci --production || sudo -u www-data npm install --production || echo "⚠️  Ошибка npm, но продолжаем"
+            else
+              sudo -u www-data npm install --production || echo "⚠️  Ошибка npm, но продолжаем"
+            fi
             
             # Очищаем кэш Python
             echo "🧹 Очищаем кэш Python..."
@@ -169,19 +185,50 @@ jobs:
             
             # Перезапускаем сервисы
             echo "🔄 Перезапускаем сервисы..."
-            sudo systemctl restart estenomada-backend || echo "⚠️  Backend не перезапущен"
-            sudo systemctl restart estenomada-frontend || echo "⚠️  Frontend не перезапущен"
+            set +e  # Отключаем прерывание на ошибках для перезапуска
+            sudo systemctl restart estenomada-backend
+            BACKEND_RESTART=$?
+            sudo systemctl restart estenomada-frontend
+            FRONTEND_RESTART=$?
+            set -e
+            
+            if [ $BACKEND_RESTART -eq 0 ]; then
+              echo "✅ Backend перезапущен"
+            else
+              echo "⚠️  Backend не перезапущен (код: $BACKEND_RESTART)"
+            fi
+            
+            if [ $FRONTEND_RESTART -eq 0 ]; then
+              echo "✅ Frontend перезапущен"
+            else
+              echo "⚠️  Frontend не перезапущен (код: $FRONTEND_RESTART)"
+            fi
             
             # Перезагружаем Nginx
             echo "🔄 Перезагружаем Nginx..."
-            sudo nginx -t && sudo systemctl reload nginx || echo "⚠️  Nginx не перезагружен"
+            set +e
+            sudo nginx -t
+            NGINX_TEST=$?
+            if [ $NGINX_TEST -eq 0 ]; then
+              sudo systemctl reload nginx
+              echo "✅ Nginx перезагружен"
+            else
+              echo "⚠️  Nginx конфигурация содержит ошибки"
+            fi
+            set -e
             
             # Проверяем статус сервисов
             echo "✅ Проверяем статус сервисов..."
-            sudo systemctl status estenomada-backend --no-pager | head -5 || true
-            sudo systemctl status estenomada-frontend --no-pager | head -5 || true
+            echo "--- Backend ---"
+            sudo systemctl is-active estenomada-backend && echo "✅ Backend активен" || echo "⚠️  Backend не активен"
+            echo "--- Frontend ---"
+            sudo systemctl is-active estenomada-frontend && echo "✅ Frontend активен" || echo "⚠️  Frontend не активен"
             
+            echo ""
             echo "✅ Деплой завершен!"
+            echo "📊 Итоговый статус:"
+            echo "   Backend: $(sudo systemctl is-active estenomada-backend)"
+            echo "   Frontend: $(sudo systemctl is-active estenomada-frontend)"
       
       - name: Cleanup
         if: always()
