@@ -1,19 +1,26 @@
 name: Deploy to Production
 
 on:
-  push:
-    branches: [ main, master ]
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
   workflow_dispatch:  # Позволяет запускать вручную через GitHub UI
 
 jobs:
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    # Запускаем только если CI завершился успешно и это push в main/master
+    if: |
+      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'master')
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
