@@ -53,10 +53,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install --no-cache-dir -r requirements.txt
       
-      - name: Run Django tests
+      - name: Check for pending migrations
+        working-directory: ./backend
+        run: |
+          python manage.py makemigrations --check --dry-run
+        env:
+          DJANGO_SETTINGS_MODULE: este_nomada.settings
+          USE_SQLITE: 'True'
+      
+      - name: Run Django check
         working-directory: ./backend
         run: |
           python manage.py check
         env:
           DJANGO_SETTINGS_MODULE: este_nomada.settings
+          USE_SQLITE: 'True'
 
