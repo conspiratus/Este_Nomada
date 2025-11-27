@@ -16,9 +16,44 @@ from .models import (
 # Стандартная модель User уже зарегистрирована в Django Admin
 
 
+class StoryForm(forms.ModelForm):
+    """Форма для историй с поддержкой Markdown."""
+    class Meta:
+        model = Story
+        fields = '__all__'
+        widgets = {
+            'content': forms.Textarea(attrs={
+                'rows': 20,
+                'cols': 80,
+                'style': 'font-family: monospace; font-size: 13px;',
+            }),
+        }
+        help_texts = {
+            'content': 'Поддерживается форматирование Markdown: заголовки (# ## ###), списки (- *), жирный текст (**текст**), курсив (*текст*), ссылки, и т.д.',
+        }
+
+
+class StoryTranslationForm(forms.ModelForm):
+    """Форма для переводов историй с поддержкой Markdown."""
+    class Meta:
+        model = StoryTranslation
+        fields = '__all__'
+        widgets = {
+            'content': forms.Textarea(attrs={
+                'rows': 20,
+                'cols': 80,
+                'style': 'font-family: monospace; font-size: 13px;',
+            }),
+        }
+        help_texts = {
+            'content': 'Поддерживается форматирование Markdown: заголовки (# ## ###), списки (- *), жирный текст (**текст**), курсив (*текст*), ссылки, и т.д.',
+        }
+
+
 class StoryTranslationInline(admin.TabularInline):
     """Inline для переводов историй."""
     model = StoryTranslation
+    form = StoryTranslationForm
     extra = 1
     fields = ['locale', 'title', 'slug', 'excerpt', 'content']
     prepopulated_fields = {'slug': ('title',)}
@@ -27,6 +62,7 @@ class StoryTranslationInline(admin.TabularInline):
 @admin.register(Story)
 class StoryAdmin(admin.ModelAdmin):
     """Админка для историй."""
+    form = StoryForm
     list_display = ['title', 'slug', 'date', 'source', 'published', 'created_at', 'cover_preview']
     list_filter = ['source', 'published', 'date']
     search_fields = ['title', 'slug', 'content']
@@ -36,7 +72,7 @@ class StoryAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Основная информация (базовая)', {
             'fields': ('title', 'slug', 'date', 'excerpt', 'content'),
-            'description': 'Эти поля используются как fallback, если нет перевода для нужной локали'
+            'description': 'Эти поля используются как fallback, если нет перевода для нужной локали. Поле "Содержание" поддерживает форматирование Markdown: заголовки (# ## ###), списки (- *), жирный текст (**текст**), курсив (*текст*), ссылки, и т.д.'
         }),
         ('Медиа', {
             'fields': ('cover_image_file', 'cover_preview', 'cover_info', 'cover_image'),

@@ -2,6 +2,7 @@
 Serializers for API.
 """
 from rest_framework import serializers
+import markdown
 from core.models import (
     Story, StoryTranslation, MenuItem, MenuItemTranslation, MenuItemImage, MenuItemAttribute,
     HeroImage, HeroSettings, Settings, Order, OrderItem, InstagramPost, Translation,
@@ -59,7 +60,30 @@ class StorySerializer(serializers.ModelSerializer):
                 data['title'] = translation.title
                 data['slug'] = translation.slug
                 data['excerpt'] = translation.excerpt
-                data['content'] = translation.content
+                content = translation.content
+            else:
+                content = data.get('content', '')
+        else:
+            content = data.get('content', '')
+        
+        # Преобразуем markdown в HTML
+        if content:
+            try:
+                # Расширение 'extra' включает:
+                # - таблицы
+                # - списки определений
+                # - fenced code blocks (блоки кода с обратными кавычками)
+                # - атрибуты для заголовков
+                # - и другие функции
+                md = markdown.Markdown(extensions=['extra'])
+                data['content'] = md.convert(content)
+            except Exception as e:
+                # Если преобразование не удалось, возвращаем как есть
+                # В production можно логировать ошибку
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Markdown conversion failed: {e}")
+                data['content'] = content
         
         return data
 
