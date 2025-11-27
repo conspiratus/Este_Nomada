@@ -299,26 +299,59 @@ class TTKGitRepository:
         Returns:
             Список словарей с информацией о коммитах
         """
+        # Пытаемся найти файл в новом формате (с ttk_id)
         file_path = self.get_file_path(dish_id, dish_name, ttk_id=ttk_id, ttk_name=ttk_name)
         relative_path = file_path.relative_to(self.repo_path)
         
+        # Если файл не найден в новом формате, пробуем старый формат
+        if not file_path.exists() and ttk_id:
+            file_path_old = self.get_file_path(dish_id, dish_name, ttk_id=None, ttk_name=None)
+            if file_path_old.exists():
+                file_path = file_path_old
+                relative_path = file_path.relative_to(self.repo_path)
+        
         if not file_path.exists():
+            logger.warning(f"Файл ТТК не найден для истории: {file_path}")
             return []
         
-        # Получаем историю коммитов
-        result = self._run_git([
-            'log',
-            f'-{limit}',
-            '--pretty=format:%H|%an|%ae|%ad|%s',
-            '--date=iso',
-            str(relative_path)
-        ])
+        # Получаем историю коммитов для обоих форматов файла
+        paths_to_check = [str(relative_path)]
+        if ttk_id:
+            # Также проверяем старый формат
+            old_path = self.get_file_path(dish_id, dish_name, ttk_id=None, ttk_name=None).relative_to(self.repo_path)
+            if str(old_path) != str(relative_path) and (self.repo_path / old_path).exists():
+                paths_to_check.append(str(old_path))
         
-        if result.returncode != 0 or not result.stdout.strip():
+        all_history = []
+        seen_hashes = set()
+        
+        for path in paths_to_check:
+            result = self._run_git([
+                'log',
+                f'-{limit * 2}',  # Берем больше, чтобы учесть оба формата
+                '--pretty=format:%H|%an|%ae|%ad|%s',
+                '--date=iso',
+                '--',
+                path
+            ])
+            
+            if result.returncode == 0 and result.stdout.strip():
+                for line in result.stdout.strip().split('\n'):
+                    if not line:
+                        continue
+                    parts = line.split('|', 4)
+                    if len(parts) == 5:
+                        commit_hash = parts[0]
+                        if commit_hash not in seen_hashes:
+                            seen_hashes.add(commit_hash)
+                            all_history.append(line)
+        
+        if not all_history:
             return []
         
+        # Ограничиваем количество и сортируем по дате (новые первыми)
         history = []
-        for line in result.stdout.strip().split('\n'):
+        for line in all_history[:limit]:
             if not line:
                 continue
             parts = line.split('|', 4)
@@ -337,7 +370,9 @@ class TTKGitRepository:
                     'message': message,
                 })
         
-        return history
+        # Сортируем по дате (новые первыми)
+        history.sort(key=lambda x: x['date'], reverse=True)
+        return history[:limit]
     
     def get_file_at_commit(self, dish_id: int, dish_name: str, commit_hash: str) -> Optional[str]:
         """
