@@ -64,17 +64,28 @@ class TTKGitRepository:
         
         full_cmd = ['git'] + cmd
         try:
+            # Устанавливаем переменные окружения для Git
+            env = os.environ.copy()
+            env['GIT_TERMINAL_PROMPT'] = '0'  # Отключаем интерактивные запросы
+            env['GIT_ASKPASS'] = ''  # Отключаем запрос пароля
+            env['GIT_CONFIG_NOSYSTEM'] = '1'  # Не используем системный конфиг
+            
             result = subprocess.run(
                 full_cmd,
                 cwd=cwd,
                 capture_output=True,
                 text=True,
                 check=False,
-                encoding='utf-8'
+                encoding='utf-8',
+                env=env,
+                timeout=30  # Таймаут 30 секунд
             )
             if result.returncode != 0:
-                logger.warning(f"Git command failed: {' '.join(full_cmd)}\nError: {result.stderr}")
+                logger.warning(f"Git command failed: {' '.join(full_cmd)}\nError: {result.stderr}\nOutput: {result.stdout}")
             return result
+        except subprocess.TimeoutExpired:
+            logger.error(f"Git command timeout: {' '.join(full_cmd)}")
+            raise
         except Exception as e:
             logger.error(f"Error running git command: {e}")
             raise
