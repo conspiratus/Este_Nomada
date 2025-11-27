@@ -349,8 +349,9 @@ class TTKGitRepository:
         if not all_history:
             return []
         
+        # Ограничиваем количество и сортируем по дате (новые первыми)
         history = []
-        for line in result.stdout.strip().split('\n'):
+        for line in all_history[:limit]:
             if not line:
                 continue
             parts = line.split('|', 4)
@@ -369,7 +370,9 @@ class TTKGitRepository:
                     'message': message,
                 })
         
-        return history
+        # Сортируем по дате (новые первыми)
+        history.sort(key=lambda x: x['date'], reverse=True)
+        return history[:limit]
     
     def get_file_at_commit(self, dish_id: int, dish_name: str, commit_hash: str) -> Optional[str]:
         """
