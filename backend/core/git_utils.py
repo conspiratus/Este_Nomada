@@ -167,11 +167,29 @@ class TTKGitRepository:
         file_path.parent.mkdir(parents=True, exist_ok=True)
         
         try:
+            # Проверяем, изменился ли файл
+            file_changed = True
+            if file_path.exists():
+                old_content = file_path.read_text(encoding='utf-8')
+                if old_content == content:
+                    logger.info(f"Файл {file_path} не изменился, пропускаем коммит")
+                    file_changed = False
+                else:
+                    logger.info(f"Файл {file_path} изменен, создаю коммит")
+            else:
+                logger.info(f"Создаю новый файл {file_path}")
+            
             # Записываем файл
             file_path.write_text(content, encoding='utf-8')
             
+            if not file_changed:
+                return True  # Файл записан, но коммит не нужен
+            
             # Добавляем в Git
-            self._run_git(['add', str(file_path.relative_to(self.repo_path))])
+            add_result = self._run_git(['add', str(file_path.relative_to(self.repo_path))])
+            if add_result.returncode != 0:
+                logger.error(f"Ошибка при добавлении файла в Git: {add_result.stderr}")
+                return False
             
             # Создаем коммит с указанным автором
             commit_cmd = ['commit', '-m', commit_message]
@@ -179,6 +197,7 @@ class TTKGitRepository:
                 commit_cmd.extend(['--author', f'{author_name} <{author_email}>'])
             
             result = self._run_git(commit_cmd)
+            logger.info(f"Результат коммита: код={result.returncode}, stdout={result.stdout[:100]}, stderr={result.stderr[:100]}")
             
             if result.returncode == 0:
                 logger.info(f"Файл {file_path} успешно закоммичен: {commit_message}")
