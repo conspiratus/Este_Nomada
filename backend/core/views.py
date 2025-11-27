@@ -13,6 +13,9 @@ from .forms import TTKEditForm, TTKCreateForm
 from django.utils import timezone
 import markdown
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def chef_login(request):
@@ -127,21 +130,32 @@ def chef_ttk_view(request, dish_id, ttk_id=None):
         # Используем Git репозиторий
         try:
             repo = ttk.get_git_repo()
+            file_path = repo.get_file_path(dish.id, dish.name, ttk_id=ttk.id, ttk_name=ttk.name)
+            logger.info(f"Пытаемся прочитать файл ТТК: {file_path}")
+            
             ttk_content = repo.read_file(dish.id, dish.name, ttk_id=ttk.id, ttk_name=ttk.name)
             if ttk_content:
                 html_content = markdown.markdown(ttk_content)
                 # Получаем историю из Git
-                git_history = repo.get_file_history(dish.id, dish.name, limit=10, ttk_id=ttk.id, ttk_name=ttk.name)
-                version_history = [
-                    {
-                        'version': f"commit {item['hash'][:7]}",
-                        'changed_by_name': item['author_name'],
-                        'created_at': item['date'],
-                        'change_description': item['message'],
-                    }
-                    for item in git_history
-                ]
+                try:
+                    git_history = repo.get_file_history(dish.id, dish.name, limit=10, ttk_id=ttk.id, ttk_name=ttk.name)
+                    version_history = [
+                        {
+                            'version': f"commit {item['hash'][:7]}",
+                            'changed_by_name': item['author_name'],
+                            'created_at': item['date'],
+                            'change_description': item['message'],
+                        }
+                        for item in git_history
+                    ]
+                except Exception as e:
+                    logger.warning(f"Не удалось получить историю из Git: {e}")
+                    version_history = []
+            else:
+                logger.warning(f"Файл ТТК не найден или пуст: {file_path}")
+                messages.warning(request, f'Файл ТТК не найден в репозитории: {file_path.name}')
         except Exception as e:
+            logger.error(f"Ошибка при чтении ТТК из Git: {e}", exc_info=True)
             messages.error(request, f'Ошибка при чтении ТТК из Git: {str(e)}')
     else:
         # Используем старый способ через FileField

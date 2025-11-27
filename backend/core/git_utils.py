@@ -122,13 +122,26 @@ class TTKGitRepository:
         Returns:
             Содержимое файла или None, если файл не найден
         """
-        file_path = self.get_file_path(dish_id, dish_name, ttk_id=ttk_id, ttk_name=ttk_name)
-        if file_path.exists():
+        # Сначала пробуем найти файл с ttk_id (новый формат)
+        if ttk_id or ttk_name:
+            file_path = self.get_file_path(dish_id, dish_name, ttk_id=ttk_id, ttk_name=ttk_name)
+            if file_path.exists():
+                try:
+                    logger.info(f"Найден файл ТТК (новый формат): {file_path}")
+                    return file_path.read_text(encoding='utf-8')
+                except Exception as e:
+                    logger.error(f"Error reading file {file_path}: {e}")
+        
+        # Если не найден, пробуем старый формат (без ttk_id) для обратной совместимости
+        file_path_old = self.get_file_path(dish_id, dish_name, ttk_id=None, ttk_name=None)
+        if file_path_old.exists():
             try:
-                return file_path.read_text(encoding='utf-8')
+                logger.info(f"Найден файл ТТК (старый формат): {file_path_old}")
+                return file_path_old.read_text(encoding='utf-8')
             except Exception as e:
-                logger.error(f"Error reading file {file_path}: {e}")
-                return None
+                logger.error(f"Error reading file {file_path_old}: {e}")
+        
+        logger.warning(f"Файл ТТК не найден. Пробовали: {file_path if (ttk_id or ttk_name) else 'N/A'} и {file_path_old}")
         return None
     
     def write_file(self, dish_id: int, dish_name: str, content: str, commit_message: str, author_name: Optional[str] = None, author_email: Optional[str] = None, ttk_id: int = None, ttk_name: str = None) -> bool:
