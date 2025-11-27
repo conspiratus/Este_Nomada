@@ -133,9 +133,9 @@ def chef_ttk_view(request, dish_id, ttk_id=None):
             file_path = repo.get_file_path(dish.id, dish.name, ttk_id=ttk.id, ttk_name=ttk.name)
             logger.info(f"Пытаемся прочитать файл ТТК: {file_path}")
             
-                ttk_content = repo.read_file(dish.id, dish.name, ttk_id=ttk.id, ttk_name=ttk.name)
-                if ttk_content:
-                    html_content = markdown.markdown(ttk_content, extensions=['tables', 'fenced_code'])
+            ttk_content = repo.read_file(dish.id, dish.name, ttk_id=ttk.id, ttk_name=ttk.name)
+            if ttk_content:
+                html_content = markdown.markdown(ttk_content, extensions=['tables', 'fenced_code'])
                 # Получаем историю из Git
                 try:
                     git_history = repo.get_file_history(dish.id, dish.name, limit=10, ttk_id=ttk.id, ttk_name=ttk.name)
