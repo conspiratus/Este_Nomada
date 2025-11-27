@@ -183,21 +183,43 @@ class TTKGitRepository:
             file_path.write_text(content, encoding='utf-8')
             
             if not file_changed:
+                logger.info(f"Файл не изменился, коммит не требуется")
                 return True  # Файл записан, но коммит не нужен
             
             # Добавляем в Git
-            add_result = self._run_git(['add', str(file_path.relative_to(self.repo_path))])
+            relative_path = str(file_path.relative_to(self.repo_path))
+            logger.info(f"Добавляю файл в Git: {relative_path}")
+            add_result = self._run_git(['add', relative_path])
             if add_result.returncode != 0:
-                logger.error(f"Ошибка при добавлении файла в Git: {add_result.stderr}")
-                return False
+                logger.error(f"❌ Ошибка при добавлении файла в Git: {add_result.stderr}")
+                # Пробуем добавить через абсолютный путь
+                logger.info(f"Пробую добавить через абсолютный путь...")
+                add_result2 = self._run_git(['add', str(file_path)])
+                if add_result2.returncode != 0:
+                    logger.error(f"❌ Ошибка при добавлении через абсолютный путь: {add_result2.stderr}")
+                    return False
+            
+            # Проверяем, что файл действительно добавлен
+            status_result = self._run_git(['status', '--porcelain', relative_path])
+            if relative_path not in status_result.stdout:
+                logger.warning(f"Файл не в staged area после add, пробую еще раз...")
+                self._run_git(['add', '-f', relative_path])  # Force add
             
             # Создаем коммит с указанным автором
             commit_cmd = ['commit', '-m', commit_message]
             if author_name and author_email:
                 commit_cmd.extend(['--author', f'{author_name} <{author_email}>'])
             
+            logger.info(f"Создаю коммит: {commit_message[:50]}...")
             result = self._run_git(commit_cmd)
-            logger.info(f"Результат коммита: код={result.returncode}, stdout={result.stdout[:100]}, stderr={result.stderr[:100]}")
+            logger.info(f"Результат коммита: код={result.returncode}")
+            if result.returncode != 0:
+                logger.error(f"❌ Ошибка при создании коммита: {result.stderr}")
+                # Проверяем, может быть коммит уже существует или нет изменений
+                if "nothing to commit" in result.stderr.lower() or "no changes" in result.stderr.lower():
+                    logger.info(f"Нет изменений для коммита (возможно, файл уже закоммичен)")
+                    return True  # Это не критичная ошибка
+                return False
             
             if result.returncode == 0:
                 logger.info(f"Файл {file_path} успешно закоммичен: {commit_message}")
