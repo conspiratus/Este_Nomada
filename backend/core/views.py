@@ -135,7 +135,7 @@ def chef_ttk_view(request, dish_id, ttk_id=None):
             
             ttk_content = repo.read_file(dish.id, dish.name, ttk_id=ttk.id, ttk_name=ttk.name)
             if ttk_content:
-                html_content = markdown.markdown(ttk_content)
+                html_content = markdown.markdown(ttk_content, extensions=['tables', 'fenced_code'])
                 # Получаем историю из Git
                 try:
                     git_history = repo.get_file_history(dish.id, dish.name, limit=10, ttk_id=ttk.id, ttk_name=ttk.name)
@@ -163,7 +163,7 @@ def chef_ttk_view(request, dish_id, ttk_id=None):
             try:
                 with open(ttk.ttk_file.path, 'r', encoding='utf-8') as f:
                     ttk_content = f.read()
-                html_content = markdown.markdown(ttk_content)
+                html_content = markdown.markdown(ttk_content, extensions=['tables', 'fenced_code'])
             except Exception as e:
                 messages.error(request, f'Ошибка при чтении файла ТТК: {str(e)}')
     

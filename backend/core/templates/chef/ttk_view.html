@@ -51,23 +51,118 @@
     }
     .ttk-editor-textarea {
         width: 100%;
-        font-family: 'Courier New', monospace;
+        font-family: 'Courier New', 'Consolas', 'Monaco', monospace;
         font-size: 14px;
-        line-height: 1.5;
+        line-height: 1.6;
         padding: 1rem;
         border: 1px solid #ddd;
         border-radius: 4px;
         background-color: #fffacd !important;
+        tab-size: 4;
+        white-space: pre;
+        overflow-wrap: normal;
+        overflow-x: auto;
+    }
+    
+    /* Подсветка таблиц в редакторе */
+    .ttk-editor-textarea:focus {
+        outline: 2px solid #667eea;
+        outline-offset: -2px;
     }
     .ttk-content {
         position: relative;
-        padding: 1rem;
-        background: #f9f9f9;
+        padding: 1.5rem;
+        background: #ffffff;
         border-radius: 4px;
-        font-family: 'Courier New', monospace;
-        line-height: 1.4;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        line-height: 1.6;
         max-height: 800px;
         overflow-y: auto;
+        color: #333;
+    }
+    
+    /* Стили для таблиц в Markdown */
+    .ttk-content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        background: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border-radius: 4px;
+        overflow: hidden;
+        font-size: 0.95rem;
+    }
+    
+    .ttk-content table thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .ttk-content table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        border-bottom: 2px solid rgba(255,255,255,0.2);
+    }
+    
+    .ttk-content table td {
+        padding: 0.875rem 1rem;
+        border-bottom: 1px solid #e0e0e0;
+        vertical-align: top;
+    }
+    
+    .ttk-content table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .ttk-content table tbody tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .ttk-content table tbody tr:nth-child(even) {
+        background-color: #fafafa;
+    }
+    
+    .ttk-content table tbody tr:nth-child(even):hover {
+        background-color: #f0f0f0;
+    }
+    
+    /* Улучшаем отображение других элементов Markdown */
+    .ttk-content h1, .ttk-content h2, .ttk-content h3 {
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+        color: #2c3e50;
+        font-weight: 600;
+    }
+    
+    .ttk-content p {
+        margin-bottom: 1rem;
+    }
+    
+    .ttk-content ul, .ttk-content ol {
+        margin-bottom: 1rem;
+        padding-left: 2rem;
+    }
+    
+    .ttk-content code {
+        background: #f4f4f4;
+        padding: 0.2rem 0.4rem;
+        border-radius: 3px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9em;
+    }
+    
+    .ttk-content pre {
+        background: #f4f4f4;
+        padding: 1rem;
+        border-radius: 4px;
+        overflow-x: auto;
+        margin: 1rem 0;
+    }
+    
+    .ttk-content pre code {
+        background: none;
+        padding: 0;
     }
     .version-history {
         max-height: 400px;
