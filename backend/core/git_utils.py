@@ -186,6 +186,7 @@ class TTKGitRepository:
                 try:
                     # Сначала получаем изменения из GitHub
                     fetch_result = self._run_git(['fetch', 'origin', '--force'])
+                    logger.info(f"Fetch выполнен: {fetch_result.returncode}")
                     
                     # Проверяем, есть ли расхождение истории
                     check_result = self._run_git(['rev-list', '--count', 'HEAD..origin/main'])
@@ -194,32 +195,35 @@ class TTKGitRepository:
                     check_result = self._run_git(['rev-list', '--count', 'origin/main..HEAD'])
                     ahead_count = check_result.stdout.strip() if check_result.returncode == 0 else "0"
                     
-                    # Если история расходится (есть коммиты и впереди, и позади), делаем reset
-                    if behind_count != "0" and ahead_count != "0":
-                        logger.warning(f"Обнаружено расхождение истории. Выполняю hard reset к origin/main...")
-                        reset_result = self._run_git(['reset', '--hard', 'origin/main'])
-                        if reset_result.returncode == 0:
-                            # Повторно добавляем и коммитим изменения
-                            self._run_git(['add', str(file_path.relative_to(self.repo_path))])
-                            commit_cmd = ['commit', '-m', commit_message]
-                            if author_name and author_email:
-                                commit_cmd.extend(['--author', f'{author_name} <{author_email}>'])
-                            self._run_git(commit_cmd)
+                    logger.info(f"История: behind={behind_count}, ahead={ahead_count}")
                     
-                    # Пытаемся синхронизировать (pull с rebase)
-                    pull_result = self._run_git(['pull', '--rebase', 'origin', 'main'])
-                    if pull_result.returncode != 0:
-                        # Если rebase не удался, пробуем обычный pull
-                        pull_result = self._run_git(['pull', 'origin', 'main', '--no-edit'])
+                    # Если мы позади, сначала делаем pull
+                    if behind_count != "0":
+                        logger.info(f"Есть удаленные изменения, делаю pull...")
+                        pull_result = self._run_git(['pull', '--rebase', 'origin', 'main'])
+                        if pull_result.returncode != 0:
+                            logger.warning(f"Rebase не удался, пробую обычный pull: {pull_result.stderr}")
+                            pull_result = self._run_git(['pull', 'origin', 'main', '--no-edit'])
+                            if pull_result.returncode != 0:
+                                logger.error(f"Pull не удался: {pull_result.stderr}")
                     
                     # Теперь отправляем
+                    logger.info(f"Отправляю коммит в GitHub...")
                     push_result = self._run_git(['push', 'origin', 'main'])
                     if push_result.returncode == 0:
-                        logger.info(f"Коммит успешно отправлен в GitHub")
+                        logger.info(f"✅ Коммит успешно отправлен в GitHub")
                     else:
-                        logger.warning(f"Не удалось отправить коммит в GitHub: {push_result.stderr}")
+                        logger.error(f"❌ Не удалось отправить коммит в GitHub. Код: {push_result.returncode}, Ошибка: {push_result.stderr}")
+                        # Пробуем force push только если это критично (не рекомендуется)
+                        if "non-fast-forward" in push_result.stderr.lower():
+                            logger.warning(f"Пробую force push (опасно!)...")
+                            force_push = self._run_git(['push', '--force', 'origin', 'main'])
+                            if force_push.returncode == 0:
+                                logger.warning(f"✅ Force push выполнен успешно")
+                            else:
+                                logger.error(f"❌ Force push тоже не удался: {force_push.stderr}")
                 except Exception as e:
-                    logger.warning(f"Ошибка при отправке коммита в GitHub: {e}")
+                    logger.error(f"❌ Ошибка при отправке коммита в GitHub: {e}", exc_info=True)
                 return True
             else:
                 # Возможно, изменений не было
