@@ -7,6 +7,7 @@ from django import forms
 from django.db import models
 from django.utils.html import format_html
 from django.contrib.admin import AdminSite
+from django.apps import apps
 from .models import (
     Story, StoryTranslation, MenuItem, MenuItemTranslation, MenuItemImage, MenuItemAttribute,
     HeroImage, HeroSettings, Settings, Order, OrderItem, InstagramPost, Translation,
@@ -15,6 +16,150 @@ from .models import (
 )
 
 # Стандартная модель User уже зарегистрирована в Django Admin
+
+
+# ============================================
+# КАСТОМНЫЙ ADMIN SITE С ГРУППИРОВКОЙ
+# ============================================
+
+class CustomAdminSite(AdminSite):
+    """Кастомный AdminSite с группировкой моделей по категориям."""
+    
+    def get_app_list(self, request):
+        """
+        Возвращает список приложений с группировкой моделей по категориям.
+        """
+        app_dict = {}
+        
+        # Получаем стандартный список приложений
+        for model, model_admin in self._registry.items():
+            app_label = model._meta.app_label
+            model_name = model._meta.model_name
+            
+            # Определяем категорию для каждой модели
+            category = self._get_model_category(model)
+            
+            # Используем категорию как app_label для группировки
+            category_label = category.lower().replace(' ', '_')
+            
+            if category_label not in app_dict:
+                app_dict[category_label] = {
+                    'name': category,
+                    'app_label': category_label,
+                    'app_url': '',
+                    'has_module_perms': True,
+                    'models': []
+                }
+            
+            # Добавляем модель в соответствующую категорию
+            model_info = {
+                'name': model._meta.verbose_name_plural or model._meta.verbose_name,
+                'object_name': model._meta.object_name,
+                'perms': model_admin.get_model_perms(request),
+                'admin_url': None,
+                'add_url': None,
+            }
+            
+            if model_admin.has_view_permission(request):
+                model_info['admin_url'] = f'/admin/{app_label}/{model_name}/'
+            if model_admin.has_add_permission(request):
+                model_info['add_url'] = f'/admin/{app_label}/{model_name}/add/'
+            
+            app_dict[category_label]['models'].append(model_info)
+        
+        # Добавляем стандартные приложения Django (auth, sessions и т.д.)
+        # Получаем их из стандартного admin.site
+        standard_apps = {}
+        for model, model_admin in admin.site._registry.items():
+            app_label = model._meta.app_label
+            if app_label not in ['core']:  # Исключаем core, т.к. мы его обработали отдельно
+                if app_label not in standard_apps:
+                    standard_apps[app_label] = {
+                        'name': apps.get_app_config(app_label).verbose_name if apps.is_installed(app_label) else app_label.title(),
+                        'app_label': app_label,
+                        'app_url': '',
+                        'has_module_perms': True,
+                        'models': []
+                    }
+                
+                model_info = {
+                    'name': model._meta.verbose_name_plural or model._meta.verbose_name,
+                    'object_name': model._meta.object_name,
+                    'perms': model_admin.get_model_perms(request),
+                    'admin_url': None,
+                    'add_url': None,
+                }
+                
+                if model_admin.has_view_permission(request):
+                    model_info['admin_url'] = f'/admin/{app_label}/{model._meta.model_name}/'
+                if model_admin.has_add_permission(request):
+                    model_info['add_url'] = f'/admin/{app_label}/{model._meta.model_name}/add/'
+                
+                standard_apps[app_label]['models'].append(model_info)
+        
+        # Объединяем кастомные категории и стандартные приложения
+        result = list(app_dict.values())
+        result.extend(list(standard_apps.values()))
+        
+        # Сортируем по имени
+        result.sort(key=lambda x: x['name'])
+        
+        return result
+    
+    def _get_model_category(self, model):
+        """Определяет категорию модели."""
+        model_name = model.__name__
+        
+        # Контент сайта
+        if model_name in ['Story', 'MenuItem', 'ContentSection', 'FooterSection']:
+            return 'Контент сайта'
+        
+        # Главная страница
+        elif model_name in ['HeroImage', 'HeroSettings']:
+            return 'Главная страница'
+        
+        # Настройки сайта
+        elif model_name in ['Settings', 'Translation']:
+            return 'Настройки сайта'
+        
+        # Заказы
+        elif model_name in ['Order', 'OrderItem']:
+            return 'Заказы'
+        
+        # Личный кабинет и корзина
+        elif model_name in ['Customer', 'Cart', 'CartItem', 'Favorite', 'DeliverySettings']:
+            return 'Личный кабинет и корзина'
+        
+        # ТТК блюд
+        elif model_name in ['DishTTK', 'TTKVersionHistory']:
+            return 'ТТК блюд'
+        
+        # Интеграции
+        elif model_name in ['InstagramPost']:
+            return 'Интеграции'
+        
+        # Другое (вспомогательные модели - переводы и т.д.)
+        else:
+            # Определяем по связанной модели
+            if 'Translation' in model_name:
+                if 'Story' in model_name:
+                    return 'Контент сайта'
+                elif 'MenuItem' in model_name:
+                    return 'Контент сайта'
+                elif 'ContentSection' in model_name:
+                    return 'Контент сайта'
+                elif 'FooterSection' in model_name:
+                    return 'Контент сайта'
+            elif 'Image' in model_name or 'Attribute' in model_name:
+                return 'Контент сайта'
+            return 'Другое'
+
+
+# Создаем экземпляр кастомного AdminSite
+custom_admin_site = CustomAdminSite(name='custom_admin')
+
+# Переопределяем стандартный admin.site для использования кастомного
+# Но сначала нужно зарегистрировать все модели в custom_admin_site
 
 
 # ============================================
@@ -65,7 +210,6 @@ class StoryTranslationInline(admin.TabularInline):
     prepopulated_fields = {'slug': ('title',)}
 
 
-@admin.register(Story)
 class StoryAdmin(admin.ModelAdmin):
     """Админка для историй."""
     form = StoryForm
@@ -178,7 +322,6 @@ class MenuItemAdminForm(forms.ModelForm):
         }
 
 
-@admin.register(MenuItem)
 class MenuItemAdmin(admin.ModelAdmin):
     """Админка для блюд меню - Контент сайта."""
     """Админка для блюд меню."""
@@ -282,9 +425,7 @@ class HeroSettingsAdmin(admin.ModelAdmin):
     )
 
 
-# Регистрируем модели Hero
-admin.site.register(HeroImage, HeroImageAdmin)
-admin.site.register(HeroSettings, HeroSettingsAdmin)
+# Модели Hero регистрируются в custom_admin_site в конце файла
 
 
 # ============================================
@@ -292,7 +433,6 @@ admin.site.register(HeroSettings, HeroSettingsAdmin)
 # ============================================
 # Включает: Основные настройки сайта, Переводы интерфейса
 
-@admin.register(Settings)
 class SettingsAdmin(admin.ModelAdmin):
     """Админка для настроек сайта."""
     list_display = ['site_name', 'logo_preview', 'contact_email', 'updated_at']
@@ -360,7 +500,6 @@ class OrderItemInline(admin.TabularInline):
 # ============================================
 # Включает: Заказы, Элементы заказов
 
-@admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     """Админка для заказов."""
     list_display = ['id', 'customer', 'name', 'email_display', 'phone_display', 'delivery_cost', 'status', 'created_at']
@@ -425,7 +564,6 @@ class OrderAdmin(admin.ModelAdmin):
 # ============================================
 # Включает: Instagram посты
 
-@admin.register(InstagramPost)
 class InstagramPostAdmin(admin.ModelAdmin):
     """Админка для Instagram постов."""
     list_display = ['instagram_id', 'media_type', 'timestamp', 'created_at']
@@ -434,7 +572,6 @@ class InstagramPostAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'updated_at']
 
 
-@admin.register(Translation)
 class TranslationAdmin(admin.ModelAdmin):
     """Админка для переводов - Настройки сайта."""
     list_display = ['locale', 'namespace', 'key', 'value', 'updated_at']
@@ -486,7 +623,6 @@ class ContentSectionTranslationInline(admin.TabularInline):
     fields = ['locale', 'title', 'subtitle', 'description', 'content']
 
 
-@admin.register(ContentSection)
 class ContentSectionAdmin(admin.ModelAdmin):
     """Админка для разделов контента."""
     form = ContentSectionAdminForm
@@ -589,7 +725,6 @@ class FooterSectionTranslationInline(admin.TabularInline):
     form = FooterSectionTranslationForm
 
 
-@admin.register(FooterSection)
 class FooterSectionAdmin(admin.ModelAdmin):
     """Админка для секций футера - Контент сайта."""
     form = FooterSectionAdminForm
@@ -641,7 +776,6 @@ class DishTTKAdminForm(forms.ModelForm):
         return ttk_file
 
 
-@admin.register(DishTTK)
 class DishTTKAdmin(admin.ModelAdmin):
     """Админка для технико-технологических карт блюд."""
     form = DishTTKAdminForm
@@ -701,7 +835,6 @@ class DishTTKAdmin(admin.ModelAdmin):
     file_preview.short_description = 'Файл ТТК'
 
 
-@admin.register(TTKVersionHistory)
 class TTKVersionHistoryAdmin(admin.ModelAdmin):
     """Админка для истории версий ТТК."""
     list_display = ['ttk', 'version', 'changed_by', 'created_at']
@@ -724,7 +857,6 @@ class TTKVersionHistoryAdmin(admin.ModelAdmin):
 # ============================================
 # Включает: Клиенты, Корзины, Избранное, Настройки доставки
 
-@admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
     """Админка для клиентов."""
     list_display = ['id', 'name', 'email_display', 'phone_display', 'is_registered', 'email_verified', 'created_at']
@@ -766,7 +898,6 @@ class CartItemInline(admin.TabularInline):
     fields = ['menu_item', 'quantity', 'created_at', 'updated_at']
 
 
-@admin.register(Cart)
 class CartAdmin(admin.ModelAdmin):
     """Админка для корзин."""
     list_display = ['id', 'customer', 'session_key_short', 'total_display', 'total_items_display', 'created_at']
@@ -805,7 +936,6 @@ class CartAdmin(admin.ModelAdmin):
     total_items_display.short_description = 'Количество товаров'
 
 
-@admin.register(Favorite)
 class FavoriteAdmin(admin.ModelAdmin):
     """Админка для избранного."""
     list_display = ['id', 'customer', 'menu_item', 'session_key_short', 'created_at']
@@ -851,5 +981,21 @@ class DeliverySettingsAdmin(admin.ModelAdmin):
     )
 
 
-admin.site.register(DeliverySettings, DeliverySettingsAdmin)
+# Регистрируем все модели в кастомном админ-сайте вместо стандартного
+custom_admin_site.register(Story, StoryAdmin)
+custom_admin_site.register(MenuItem, MenuItemAdmin)
+custom_admin_site.register(HeroImage, HeroImageAdmin)
+custom_admin_site.register(HeroSettings, HeroSettingsAdmin)
+custom_admin_site.register(Settings, SettingsAdmin)
+custom_admin_site.register(Order, OrderAdmin)
+custom_admin_site.register(InstagramPost, InstagramPostAdmin)
+custom_admin_site.register(Translation, TranslationAdmin)
+custom_admin_site.register(ContentSection, ContentSectionAdmin)
+custom_admin_site.register(FooterSection, FooterSectionAdmin)
+custom_admin_site.register(DishTTK, DishTTKAdmin)
+custom_admin_site.register(TTKVersionHistory, TTKVersionHistoryAdmin)
+custom_admin_site.register(Customer, CustomerAdmin)
+custom_admin_site.register(Cart, CartAdmin)
+custom_admin_site.register(Favorite, FavoriteAdmin)
+custom_admin_site.register(DeliverySettings, DeliverySettingsAdmin)
 
