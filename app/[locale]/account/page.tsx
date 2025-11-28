@@ -101,11 +101,12 @@ export default function AccountPage() {
     const checkAuth = () => {
       if (typeof window !== 'undefined') {
         const token = getAccessToken();
-        console.log('[Account] useEffect - token exists:', !!token);
+        console.log('[Account] useEffect - token exists:', !!token, 'token value:', token ? token.substring(0, 20) + '...' : 'null');
         if (token) {
           loadAccountData();
         } else {
           // Если токена нет, сразу показываем форму входа
+          console.log('[Account] No token, showing login form');
           setLoading(false);
           setIsAuthenticated(false);
         }
@@ -114,7 +115,18 @@ export default function AccountPage() {
     
     // Небольшая задержка для гарантии, что localStorage доступен
     const timer = setTimeout(checkAuth, 100);
-    return () => clearTimeout(timer);
+    
+    // Также проверяем при возврате фокуса на окно
+    const handleFocus = () => {
+      console.log('[Account] Window focused, rechecking auth');
+      checkAuth();
+    };
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('focus', handleFocus);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

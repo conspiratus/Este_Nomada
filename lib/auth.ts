@@ -91,8 +91,10 @@ export async function refreshAccessToken(): Promise<string | null> {
     console.error('Error refreshing token:', error);
   }
 
-  // Если обновление не удалось, НЕ очищаем токены автоматически
-  // Пусть пользователь остается залогиненным до явного выхода
+  // Если обновление не удалось, очищаем токены только если refresh токен истек
+  // Но не очищаем при временных ошибках сети
+  console.log('[Auth] Token refresh failed');
+  // Не очищаем токены автоматически - пусть пользователь остается залогиненным
   // clearTokens();
   return null;
 }

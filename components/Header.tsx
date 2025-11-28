@@ -46,6 +46,39 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
   
   const locale = getCurrentLocale();
 
+  // Функция проверки авторизации
+  const checkAuth = useCallback(async () => {
+    try {
+      // Небольшая задержка для гарантии, что localStorage доступен
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Проверяем наличие токена перед запросом
+      if (!hasToken()) {
+        console.log('[Header] No token found');
+        setIsAuthenticated(false);
+        return;
+      }
+      
+      console.log('[Header] Token found, checking auth');
+      const apiUrl = typeof window !== 'undefined' 
+        ? window.location.origin + '/api'
+        : '/api';
+      const response = await fetchWithAuth(`${apiUrl}/customers/`);
+      if (response.ok) {
+        const customers = await response.json();
+        const isAuth = customers && customers.length > 0;
+        console.log('[Header] Auth check result:', isAuth);
+        setIsAuthenticated(isAuth);
+      } else {
+        console.log('[Header] Auth check failed:', response.status);
+        setIsAuthenticated(false);
+      }
+    } catch (error) {
+      console.error('[Header] Error checking auth:', error);
+      setIsAuthenticated(false);
+    }
+  }, []);
+
   // Загружаем настройки сайта и проверяем авторизацию
   useEffect(() => {
     const fetchSettings = async () => {
@@ -61,33 +94,19 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
       }
     };
     
-    const checkAuth = async () => {
-      try {
-        // Проверяем наличие токена перед запросом
-        if (!hasToken()) {
-          setIsAuthenticated(false);
-          return;
-        }
-        
-        const apiUrl = typeof window !== 'undefined' 
-          ? window.location.origin + '/api'
-          : '/api';
-        const response = await fetchWithAuth(`${apiUrl}/customers/`);
-        if (response.ok) {
-          const customers = await response.json();
-          setIsAuthenticated(customers && customers.length > 0);
-        } else {
-          setIsAuthenticated(false);
-        }
-      } catch (error) {
-        // Игнорируем ошибки проверки авторизации
-        setIsAuthenticated(false);
-      }
-    };
-    
     fetchSettings();
     checkAuth();
-  }, []);
+    
+    // Проверяем авторизацию при изменении фокуса окна (возврат на вкладку)
+    const handleFocus = () => {
+      checkAuth();
+    };
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [checkAuth]);
 
   useEffect(() => {
     // Проверяем, что мы на клиенте
