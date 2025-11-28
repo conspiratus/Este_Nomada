@@ -7,6 +7,12 @@ on:
       - completed
   workflow_dispatch:  # Позволяет запускать вручную через GitHub UI
 
+# Ограничиваем параллельные деплои - только один деплой за раз
+# Если деплой уже идет, новые будут ждать в очереди
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false  # Не отменяем текущий деплой, ставим в очередь
+
 jobs:
   deploy:
     name: Deploy to Production
