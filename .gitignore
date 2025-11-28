@@ -57,3 +57,6 @@ venv/
 env/
 ENV/
 *.log
+
+# Database backups
+backend/backups/
