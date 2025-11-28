@@ -798,10 +798,6 @@ export default function OrderPage() {
           setShowRegistrationModal(false);
         }}
         initialData={lastOrderData || undefined}
-          name: formData.name || undefined,
-          email: lastOrderEmail || formData.email || undefined,
-          phone: formData.phone || undefined,
-        }}
       />
     </div>
   );
