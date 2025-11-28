@@ -3968,3 +3968,17 @@ Watching for file changes with StatReloader
 /Users/conspiratus/Projects/Este_Nomada/backend/api/serializers.py changed, reloading.
 Watching for file changes with StatReloader
 Watching for file changes with StatReloader
+/Users/conspiratus/Projects/Este_Nomada/backend/core/models.py changed, reloading.
+/Users/conspiratus/Projects/Este_Nomada/backend/core/admin.py changed, reloading.
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+"GET /api/stories/public/ HTTP/1.1" 200 570
+"GET /api/stories/public/ HTTP/1.1" 200 570
+"GET /api/translations/by_locale/?locale=ru HTTP/1.1" 200 3766
+"GET /api/stories/public/?locale=ru&limit=3 HTTP/1.1" 200 570
+"GET /api/translations/by_locale/?locale=es HTTP/1.1" 200 2840
+"GET /api/stories/public/?locale=es&limit=3 HTTP/1.1" 200 540
+"GET /api/translations/by_locale/?locale=en HTTP/1.1" 200 2537
+"GET /api/stories/public/?locale=en&limit=3 HTTP/1.1" 200 570
+"GET /api/translations/by_locale/?locale=en HTTP/1.1" 200 2537
+"GET /api/stories/pervyj-koster/?locale=en HTTP/1.1" 200 568

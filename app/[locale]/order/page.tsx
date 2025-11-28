@@ -50,6 +50,7 @@ export default function OrderPage() {
   useEffect(() => {
     loadMenuItems();
     loadCart();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale]);
 
   const loadMenuItems = async () => {

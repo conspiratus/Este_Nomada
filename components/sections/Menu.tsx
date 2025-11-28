@@ -5,43 +5,7 @@ import { motion } from "framer-motion";
 import { useTranslations } from 'next-intl';
 import Image from "next/image";
 import MenuItemModal from '@/components/modals/MenuItemModal';
-
-interface MenuItemImage {
-  id: number;
-  image_url: string;
-  order: number;
-}
-
-interface MenuItemAttribute {
-  id: number;
-  locale: string;
-  name: string;
-  value: string;
-  order: number;
-}
-
-interface RelatedStory {
-  id: number;
-  title: string;
-  slug: string;
-  excerpt: string | null;
-  coverImage: string | null;
-  date: string;
-}
-
-interface MenuItem {
-  id: number;
-  name: string;
-  description: string | null;
-  category: string;
-  price: number | null;
-  image: string | null;
-  images?: MenuItemImage[];
-  attributes?: MenuItemAttribute[];
-  related_stories?: RelatedStory[];
-  order: number;
-  active: boolean;
-}
+import type { MenuItem } from '@/lib/menu-api';
 
 interface MenuProps {
   menuItems: MenuItem[];
@@ -135,7 +99,7 @@ export default function Menu({ menuItems }: MenuProps) {
                     
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-saffron-600 font-medium">
-                        {item.category}
+                        {item.category?.name || '—'}
                       </span>
                       <span className="text-charcoal-400">
                         {item.price ? `${item.price}€` : "—"}

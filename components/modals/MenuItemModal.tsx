@@ -6,43 +6,7 @@ import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLocale, useTranslations } from 'next-intl';
-
-interface MenuItemImage {
-  id: number;
-  image_url: string;
-  order: number;
-}
-
-interface MenuItemAttribute {
-  id: number;
-  locale: string;
-  name: string;
-  value: string;
-  order: number;
-}
-
-interface RelatedStory {
-  id: number;
-  title: string;
-  slug: string;
-  excerpt: string | null;
-  coverImage: string | null;
-  date: string;
-}
-
-interface MenuItem {
-  id: number;
-  name: string;
-  description: string | null;
-  category: string;
-  price: number | null;
-  image: string | null;
-  images?: MenuItemImage[];
-  attributes?: MenuItemAttribute[];
-  related_stories?: RelatedStory[];
-  order: number;
-  active: boolean;
-}
+import type { MenuItem } from '@/lib/menu-api';
 
 interface MenuItemModalProps {
   item: MenuItem | null;
@@ -219,11 +183,13 @@ export default function MenuItemModal({ item, isOpen, onClose }: MenuItemModalPr
                 </button>
 
                 {/* Category */}
-                <div className="mb-4">
-                  <span className="inline-block px-3 py-1 bg-saffron-100 text-saffron-700 rounded-full text-sm font-medium">
-                    {item.category}
-                  </span>
-                </div>
+                {item.category && (
+                  <div className="mb-4">
+                    <span className="inline-block px-3 py-1 bg-saffron-100 text-saffron-700 rounded-full text-sm font-medium">
+                      {item.category.name}
+                    </span>
+                  </div>
+                )}
 
                 {/* Title */}
                 <h2 className="text-3xl md:text-4xl font-bold text-charcoal-900 mb-4">
