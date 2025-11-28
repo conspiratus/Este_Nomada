@@ -54,6 +54,9 @@ export default function AccountPage() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loggingIn, setLoggingIn] = useState(false);
 
   const API_BASE_URL = getApiUrl();
 
@@ -135,21 +138,6 @@ export default function AccountPage() {
       minute: '2-digit',
     });
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-sand-50 py-20 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-saffron-500"></div>
-          <p className="mt-4 text-charcoal-600">{t('loading')}</p>
-        </div>
-      </div>
-    );
-  }
-
-  const [loginData, setLoginData] = useState({ email: '', password: '' });
-  const [loginError, setLoginError] = useState<string | null>(null);
-  const [loggingIn, setLoggingIn] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
