@@ -228,6 +228,17 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
           </Link>
           <Link
             href={`/${locale}/account`}
+            onClick={async (e) => {
+              // Проверяем токен перед переходом
+              if (typeof window !== 'undefined') {
+                const { getAccessToken } = await import('@/lib/auth');
+                const token = getAccessToken();
+                if (!token) {
+                  // Если токена нет, проверяем еще раз
+                  await checkAuth();
+                }
+              }
+            }}
             className="px-6 py-2 bg-saffron-500 text-white rounded-full hover:bg-saffron-600 transition-colors font-medium"
           >
             {t('myAccount') || 'Мой ЛК'}
@@ -393,13 +404,24 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
                 {t('order')}
               </Link>
               {isAuthenticated && (
-                <Link
-                  href={`/${locale}/account`}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="w-full px-6 py-2 bg-charcoal-700 text-white rounded-full hover:bg-charcoal-800 transition-colors font-medium text-center block mt-2"
-                >
-                  {t('account')}
-                </Link>
+              <Link
+                href={`/${locale}/account`}
+                onClick={async (e) => {
+                  setIsMobileMenuOpen(false);
+                  // Проверяем токен перед переходом
+                  if (typeof window !== 'undefined') {
+                    const { getAccessToken } = await import('@/lib/auth');
+                    const token = getAccessToken();
+                    if (!token) {
+                      // Если токена нет, проверяем еще раз
+                      await checkAuth();
+                    }
+                  }
+                }}
+                className="w-full px-6 py-2 bg-charcoal-700 text-white rounded-full hover:bg-charcoal-800 transition-colors font-medium text-center block mt-2"
+              >
+                {t('account')}
+              </Link>
               )}
             </div>
           </motion.div>
