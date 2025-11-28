@@ -401,7 +401,7 @@ class HeroButton(models.Model):
         """Получить перевод для указанной локали."""
         try:
             return self.translations.get(locale=locale)
-        except HeroButtonTranslation.DoesNotExist:
+        except Exception:
             return None
 
 
