@@ -8,26 +8,44 @@ One.com предоставляет SMTP сервер для отправки п�
 
 #### Настройка в Django
 
-Добавьте в `backend/.env` или `backend/.env.production`:
+**Данные SMTP one.com:**
+- SMTP server: `send.one.com`
+- SMTP port: `465` (SSL)
+- IMAP server: `imap.one.com` (порт 993)
+- POP3 server: `pop.one.com` (порт 995)
+
+**Автоматическая настройка (рекомендуется):**
+
+Запустите скрипт на сервере:
+```bash
+ssh -p 22 czjey8yl0_ssh@ssh.czjey8yl0.service.one
+cd /customers/d/9/4/czjey8yl0/webroots/17a5d75c
+chmod +x scripts/setup_email_on_server.sh
+./scripts/setup_email_on_server.sh
+```
+
+Скрипт автоматически:
+- Настроит .env файл с правильными параметрами
+- Попросит ввести email и пароль
+- Отправит тестовое письмо
+
+**Ручная настройка:**
+
+Добавьте в `backend/.env`:
 
 ```env
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=smtp.one.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
+EMAIL_HOST=send.one.com
+EMAIL_PORT=465
+EMAIL_USE_TLS=False
+EMAIL_USE_SSL=True
 EMAIL_HOST_USER=your-email@estenomada.es
 EMAIL_HOST_PASSWORD=your-email-password
-DEFAULT_FROM_EMAIL=noreply@estenomada.es
+DEFAULT_FROM_EMAIL=your-email@estenomada.es
+SERVER_EMAIL=your-email@estenomada.es
 ```
 
-**Где взять данные:**
-1. Зайдите в панель управления one.com
-2. Перейдите в раздел "Email" или "Почта"
-3. Найдите настройки SMTP
-4. Обычно:
-   - SMTP сервер: `smtp.one.com` или `smtp.one.com:587`
-   - Порт: `587` (TLS) или `465` (SSL)
-   - Используйте ваш email и пароль от почты
+⚠️ **Важно:** Порт 465 использует SSL, а не TLS, поэтому `EMAIL_USE_SSL=True` и `EMAIL_USE_TLS=False`
 
 ### Вариант 2: Установка локального почтового сервера (Postfix)
 
