@@ -39,6 +39,7 @@ export default function OrderPage() {
     postal_code: "",
     address: "",
     comment: "",
+    is_pickup: false,
   });
   const [deliveryInfo, setDeliveryInfo] = useState<DeliveryCalculation | null>(null);
   const [calculatingDelivery, setCalculatingDelivery] = useState(false);
@@ -175,7 +176,8 @@ export default function OrderPage() {
   };
 
   const calculateDelivery = async () => {
-    if (!formData.postal_code) {
+    // Не рассчитываем доставку при самовывозе
+    if (formData.is_pickup || !formData.postal_code) {
       return;
     }
 
@@ -202,14 +204,14 @@ export default function OrderPage() {
         const error = await response.json();
         setDeliveryInfo({
           success: false,
-          error: error.error || 'Ошибка расчета доставки',
+          error: error.error || t('deliveryError'),
         });
       }
     } catch (err) {
       console.error("Error calculating delivery:", err);
       setDeliveryInfo({
         success: false,
-        error: 'Ошибка при расчете доставки',
+        error: t('deliveryCalculationError'),
       });
     } finally {
       setCalculatingDelivery(false);
@@ -219,13 +221,25 @@ export default function OrderPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Валидация обязательных полей
+    if (!formData.name) {
+      alert(t('nameRequired') || 'Имя обязательно для заполнения');
+      return;
+    }
+    
     if (!formData.email || !formData.phone) {
-      alert('Email и телефон обязательны');
+      alert(t('emailRequired'));
       return;
     }
 
     if (cart.length === 0) {
-      alert('Корзина пуста');
+      alert(t('cartEmpty'));
+      return;
+    }
+
+    // Валидация для доставки (если не самовывоз)
+    if (!formData.is_pickup && !formData.postal_code) {
+      alert(t('postalCodeRequired') || 'Почтовый индекс обязателен для доставки');
       return;
     }
 
@@ -240,10 +254,11 @@ export default function OrderPage() {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        postal_code: formData.postal_code,
-        address: formData.address,
+        is_pickup: formData.is_pickup,
+        postal_code: formData.is_pickup ? '' : formData.postal_code,
+        address: formData.is_pickup ? '' : formData.address,
         comment: formData.comment,
-        delivery_cost: deliveryInfo?.cost || 0,
+        delivery_cost: formData.is_pickup ? 0 : (deliveryInfo?.cost || 0),
         selected_dishes: selectedDishes,
       };
 
@@ -265,22 +280,23 @@ export default function OrderPage() {
           postal_code: "",
           address: "",
           comment: "",
+          is_pickup: false,
         });
         setDeliveryInfo(null);
       } else {
         const error = await response.json();
-        alert(error.error || 'Ошибка при создании заказа');
+        alert(error.error || t('orderError'));
       }
     } catch (err) {
       console.error("Error submitting order:", err);
-      alert('Ошибка при создании заказа');
+      alert(t('orderError'));
     } finally {
       setSubmitting(false);
     }
   };
 
   const cartTotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
-  const deliveryCost = deliveryInfo?.cost || 0;
+  const deliveryCost = formData.is_pickup ? 0 : (deliveryInfo?.cost || 0);
   const orderTotal = cartTotal + deliveryCost;
 
   return (
@@ -373,7 +389,7 @@ export default function OrderPage() {
                                             updateCartItem(cartItem!.id, quantity - 1);
                                           }}
                                           className="p-1.5 rounded-full bg-saffron-100 text-saffron-700 hover:bg-saffron-200 transition-colors"
-                                          aria-label="Уменьшить количество"
+                                          aria-label={t('decreaseQuantity')}
                                         >
                                           <Minus className="w-4 h-4" />
                                         </button>
@@ -389,7 +405,7 @@ export default function OrderPage() {
                                           addToCart(item.id, 1);
                                         }}
                                         className="p-1.5 rounded-full bg-saffron-500 text-white hover:bg-saffron-600 transition-colors"
-                                        aria-label="Добавить в корзину"
+                                        aria-label={t('addToCart')}
                                       >
                                         <Plus className="w-4 h-4" />
                                       </button>
@@ -413,11 +429,11 @@ export default function OrderPage() {
               <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
                 <h2 className="text-2xl font-bold text-charcoal-900 mb-4 flex items-center">
                   <ShoppingCart className="w-6 h-6 mr-2" />
-                  Корзина
+                  {t('cart')}
                 </h2>
                 {cart.length === 0 ? (
                   <p className="text-charcoal-600 text-center py-8">
-                    Корзина пуста
+                    {t('emptyCart')}
                   </p>
                 ) : (
                   <>
@@ -438,7 +454,7 @@ export default function OrderPage() {
                           <button
                             onClick={() => removeFromCart(item.id)}
                             className="ml-2 text-red-500 hover:text-red-700"
-                            aria-label="Удалить"
+                            aria-label={t('removeFromCart')}
                           >
                             <Minus className="w-4 h-4" />
                           </button>
@@ -447,19 +463,25 @@ export default function OrderPage() {
                     </div>
                     <div className="border-t border-warm-200 pt-4">
                       <div className="flex justify-between mb-2">
-                        <span className="text-charcoal-700">Товары:</span>
+                        <span className="text-charcoal-700">{t('items')}:</span>
                         <span className="font-semibold">{cartTotal.toFixed(2)}€</span>
                       </div>
-                      {deliveryInfo && (
+                      {!formData.is_pickup && (
                         <div className="flex justify-between mb-2">
-                          <span className="text-charcoal-700">Доставка:</span>
+                          <span className="text-charcoal-700">{t('delivery')}:</span>
                           <span className="font-semibold">
-                            {deliveryInfo.free_delivery ? 'Бесплатно' : `${deliveryCost.toFixed(2)}€`}
+                            {deliveryInfo?.free_delivery ? t('free') : `${deliveryCost.toFixed(2)}€`}
                           </span>
                         </div>
                       )}
+                      {formData.is_pickup && (
+                        <div className="flex justify-between mb-2">
+                          <span className="text-charcoal-700">{t('delivery')}:</span>
+                          <span className="font-semibold">{t('free')}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between text-lg font-bold text-charcoal-900 pt-2 border-t border-warm-200">
-                        <span>Итого:</span>
+                        <span>{t('total')}:</span>
                         <span className="text-saffron-600">{orderTotal.toFixed(2)}€</span>
                       </div>
                     </div>
@@ -519,11 +541,30 @@ export default function OrderPage() {
                     />
                   </div>
 
-                  {/* Почтовый индекс */}
+                  {/* Самовывоз */}
+                  <div>
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_pickup}
+                        onChange={(e) => {
+                          setFormData({ ...formData, is_pickup: e.target.checked, postal_code: '', address: '' });
+                          setDeliveryInfo(null);
+                        }}
+                        className="w-5 h-5 text-saffron-600 border-warm-300 rounded focus:ring-saffron-500"
+                      />
+                      <span className="ml-2 text-sm font-medium text-charcoal-700">
+                        {t('pickup')}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Почтовый индекс (скрыт при самовывозе) */}
+                  {!formData.is_pickup && (
                   <div>
                     <label className="block text-sm font-medium text-charcoal-700 mb-2 flex items-center">
                       <MapPin className="w-4 h-4 mr-1" />
-                      Почтовый индекс
+                      {t('postalCode')} *
                     </label>
                     <div className="flex space-x-2">
                       <input
@@ -532,7 +573,7 @@ export default function OrderPage() {
                         onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
                         onBlur={calculateDelivery}
                         className="flex-1 px-4 py-3 rounded-lg border border-warm-300 focus:ring-2 focus:ring-saffron-500 focus:border-transparent outline-none"
-                        placeholder="33001"
+                        placeholder={t('postalCodePlaceholder')}
                       />
                       <button
                         type="button"
@@ -540,15 +581,14 @@ export default function OrderPage() {
                         disabled={calculatingDelivery || !formData.postal_code}
                         className="px-4 py-3 bg-saffron-500 text-white rounded-lg hover:bg-saffron-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        {calculatingDelivery ? '...' : 'Рассчитать'}
+                        {calculatingDelivery ? t('calculatingDelivery') : t('calculateDelivery')}
                       </button>
                     </div>
                     {deliveryInfo && (
                       <div className="mt-2 text-sm">
                         {deliveryInfo.success ? (
                           <div className="text-green-600">
-                            <p>Расстояние: {deliveryInfo.distance?.toFixed(1)} км</p>
-                            <p>Стоимость доставки: {deliveryInfo.free_delivery ? 'Бесплатно' : `${deliveryInfo.cost}€`}</p>
+                            <p>{t('deliveryCost')}: {deliveryInfo.free_delivery ? t('free') : `${deliveryInfo.cost}€`}</p>
                             {deliveryInfo.address && (
                               <p className="text-charcoal-600 text-xs mt-1">{deliveryInfo.address}</p>
                             )}
@@ -559,20 +599,23 @@ export default function OrderPage() {
                       </div>
                     )}
                   </div>
+                  )}
 
-                  {/* Адрес */}
+                  {/* Адрес (скрыт при самовывозе) */}
+                  {!formData.is_pickup && (
                   <div>
                     <label className="block text-sm font-medium text-charcoal-700 mb-2">
-                      Адрес доставки
+                      {t('address')}
                     </label>
                     <textarea
                       value={formData.address}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                       rows={3}
                       className="w-full px-4 py-3 rounded-lg border border-warm-300 focus:ring-2 focus:ring-saffron-500 focus:border-transparent outline-none resize-none"
-                      placeholder="Улица, дом, квартира"
+                      placeholder={t('addressPlaceholder')}
                     />
                   </div>
+                  )}
 
                   {/* Комментарий */}
                   <div>
@@ -594,7 +637,7 @@ export default function OrderPage() {
                     disabled={submitting || cart.length === 0}
                     className="w-full px-6 py-4 bg-saffron-500 text-white rounded-full hover:bg-saffron-600 transition-all font-medium text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
                   >
-                    {submitting ? 'Отправка...' : t('submit')}
+                    {submitting ? t('submitting') : t('submit')}
                   </button>
 
                   {showSuccess && (
@@ -645,7 +688,7 @@ export default function OrderPage() {
               <button
                 onClick={() => setSelectedItem(null)}
                 className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-lg hover:bg-sand-50 transition-colors"
-                aria-label="Закрыть"
+                aria-label={t('close')}
               >
                 <X className="w-5 h-5 text-charcoal-900" />
               </button>
@@ -676,7 +719,7 @@ export default function OrderPage() {
                         <button
                           onClick={() => updateCartItem(cartItem!.id, quantity - 1)}
                           className="p-2 rounded-full bg-saffron-100 text-saffron-700 hover:bg-saffron-200 transition-colors"
-                          aria-label="Уменьшить количество"
+                          aria-label={t('decreaseQuantity')}
                         >
                           <Minus className="w-5 h-5" />
                         </button>
@@ -691,10 +734,10 @@ export default function OrderPage() {
                           addToCart(selectedItem.id, 1);
                         }}
                         className="px-6 py-3 bg-saffron-500 text-white rounded-full hover:bg-saffron-600 transition-colors font-medium"
-                        aria-label="Добавить в корзину"
+                        aria-label={t('addToCart')}
                       >
                         <Plus className="w-5 h-5 inline mr-2" />
-                        Добавить в корзину
+                        {t('addToCart')}
                       </button>
                     </>
                   );

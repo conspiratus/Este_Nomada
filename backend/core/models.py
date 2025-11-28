@@ -438,6 +438,9 @@ class Order(models.Model):
     email = EncryptedField(max_length=255, blank=True, null=True, verbose_name='Email')
     phone = EncryptedField(max_length=50, blank=True, null=True, verbose_name='Телефон')
     
+    # Тип заказа
+    is_pickup = models.BooleanField(default=False, verbose_name='Самовывоз')
+    
     # Адрес доставки
     postal_code = models.CharField(max_length=20, blank=True, null=True, verbose_name='Почтовый индекс')
     address = models.TextField(blank=True, null=True, verbose_name='Адрес доставки')

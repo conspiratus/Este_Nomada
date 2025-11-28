@@ -209,6 +209,40 @@ class OrderViewSet(viewsets.ModelViewSet):
         """Создание заказа с элементами."""
         data = request.data.copy()
         
+        # Валидация обязательных полей
+        if not data.get('name'):
+            return Response(
+                {'error': 'Имя обязательно для заполнения'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not data.get('email'):
+            return Response(
+                {'error': 'Email обязателен для заполнения'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not data.get('phone'):
+            return Response(
+                {'error': 'Телефон обязателен для заполнения'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Проверяем, есть ли блюда в заказе
+        selected_dishes = request.data.get('selected_dishes', [])
+        if not selected_dishes:
+            return Response(
+                {'error': 'Выберите хотя бы одно блюдо'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Проверка для доставки (если не самовывоз)
+        is_pickup = data.get('is_pickup', False)
+        if not is_pickup:
+            if not data.get('postal_code'):
+                return Response(
+                    {'error': 'Почтовый индекс обязателен для доставки'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
         # Определяем customer
         customer = None
         if request.user.is_authenticated:
@@ -236,7 +270,6 @@ class OrderViewSet(viewsets.ModelViewSet):
         order = serializer.save()
         
         # Создаём элементы заказа
-        selected_dishes = request.data.get('selected_dishes', [])
         order_total = 0
         
         for dish_data in selected_dishes:
@@ -261,17 +294,27 @@ class OrderViewSet(viewsets.ModelViewSet):
             except MenuItem.DoesNotExist:
                 pass
         
-        # Рассчитываем стоимость доставки, если указан postal_code
-        postal_code = data.get('postal_code')
-        if postal_code:
-            delivery_settings = DeliverySettings.get_settings()
-            delivery_result = delivery_settings.calculate_delivery_cost(postal_code, order_total)
-            if delivery_result.get('success'):
-                order.delivery_cost = delivery_result.get('cost', 0)
-                order.delivery_distance = delivery_result.get('distance')
-                if delivery_result.get('address'):
-                    order.address = delivery_result.get('address')
-                order.save()
+        # Рассчитываем стоимость доставки только если не самовывоз и указан postal_code
+        if not is_pickup:
+            postal_code = data.get('postal_code')
+            if postal_code:
+                try:
+                    delivery_settings = DeliverySettings.get_settings()
+                    delivery_result = delivery_settings.calculate_delivery_cost(postal_code, order_total)
+                    if delivery_result.get('success'):
+                        order.delivery_cost = delivery_result.get('cost', 0)
+                        order.delivery_distance = delivery_result.get('distance')
+                        if delivery_result.get('address'):
+                            order.address = delivery_result.get('address')
+                        order.save()
+                except Exception as e:
+                    # Если ошибка расчета доставки, продолжаем без нее
+                    pass
+        else:
+            # При самовывозе доставка бесплатна
+            order.delivery_cost = 0
+            order.delivery_distance = None
+            order.save()
         
         # Здесь будет обработка через OpenAI (в задаче Celery)
         from .tasks import process_order_with_ai
