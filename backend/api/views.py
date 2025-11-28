@@ -605,6 +605,12 @@ class CustomerViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerSerializer
     permission_classes = [IsAuthenticated]
     
+    def get_permissions(self):
+        """Разные права доступа для разных действий."""
+        if self.action in ['register', 'login', 'verify_email']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
+    
     def get_queryset(self):
         """Пользователь видит только свой профиль."""
         if self.request.user.is_staff:
