@@ -718,9 +718,52 @@ class CustomerViewSet(viewsets.ModelViewSet):
         
         serializer = CustomerSerializer(customer, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def login(self, request):
+        """Вход пользователя по email и паролю."""
+        email = request.data.get('email')
+        password = request.data.get('password')
         
-        serializer = self.get_serializer(customer)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        if not email or not password:
+            return Response(
+                {'error': 'Email и пароль обязательны'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Ищем пользователя по email
+        user = User.objects.filter(email=email).first()
+        if not user:
+            return Response(
+                {'error': 'Неверный email или пароль'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # Проверяем пароль
+        from django.contrib.auth import authenticate, login
+        authenticated_user = authenticate(request, username=user.username, password=password)
+        if not authenticated_user:
+            return Response(
+                {'error': 'Неверный email или пароль'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # Авторизуем пользователя
+        login(request, authenticated_user)
+        
+        # Получаем или создаем клиента
+        customer = Customer.objects.filter(user=authenticated_user).first()
+        if not customer:
+            customer = Customer.objects.create(
+                user=authenticated_user,
+                email=email,
+                phone='',
+                is_registered=True,
+                email_verified=False
+            )
+        
+        serializer = CustomerSerializer(customer, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def verify_email(self, request):

@@ -84,13 +84,13 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess, initialD
       if (response.ok) {
         setSuccess(true);
         setTimeout(() => {
+          // Перенаправляем в ЛК сразу после регистрации
+          router.push(`/${locale}/account`);
+          onClose();
           if (onSuccess) {
             onSuccess();
           }
-          // Перенаправляем в ЛК
-          router.push(`/${locale}/account`);
-          onClose();
-        }, 2000);
+        }, 1500);
       } else {
         const errorData = await response.json();
         setError(errorData.error || t('error'));

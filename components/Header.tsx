@@ -197,17 +197,17 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
             {t('ourDishes')}
           </Link>
           <Link
-            href={`/${locale}/order`}
+            href={`/${locale}/account`}
             className="px-6 py-2 bg-saffron-500 text-white rounded-full hover:bg-saffron-600 transition-colors font-medium"
           >
-            {t('order')}
+            {t('myAccount') || 'Мой ЛК'}
           </Link>
-          {isAuthenticated && (
+          {!isAuthenticated && (
             <Link
-              href={`/${locale}/account`}
+              href={`/${locale}/order`}
               className="px-6 py-2 bg-charcoal-700 text-white rounded-full hover:bg-charcoal-800 transition-colors font-medium"
             >
-              {t('account')}
+              {t('order')}
             </Link>
           )}
         </div>

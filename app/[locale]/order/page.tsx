@@ -9,6 +9,7 @@ import { Plus, Minus, Heart, ShoppingCart, MapPin, X } from 'lucide-react';
 import Image from 'next/image';
 import type { MenuCategoryGroup } from '@/lib/menu-api';
 import RegistrationModal from '@/components/modals/RegistrationModal';
+import { useRouter } from 'next/navigation';
 
 interface CartItem {
   id: number;
@@ -29,6 +30,7 @@ interface DeliveryCalculation {
 export default function OrderPage() {
   const t = useTranslations('order');
   const locale = useLocale();
+  const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [menuCategories, setMenuCategories] = useState<MenuCategoryGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -289,7 +291,7 @@ export default function OrderPage() {
         });
         
         // Проверяем, зарегистрирован ли пользователь
-        // Если нет - предлагаем регистрацию через 2 секунды
+        // Если нет - редиректим на страницу аккаунта, где можно зарегистрироваться
         setTimeout(() => {
           // Проверяем, есть ли у пользователя аккаунт
           fetch(`${API_BASE_URL}/customers/`, {
@@ -299,17 +301,17 @@ export default function OrderPage() {
               res.json().then(customers => {
                 const customer = customers && customers.length > 0 ? customers[0] : null;
                 if (!customer || !customer.is_registered) {
-                  // Пользователь не зарегистрирован - показываем модальное окно
-                  setShowRegistrationModal(true);
+                  // Пользователь не зарегистрирован - редиректим на страницу аккаунта
+                  router.push(`/${locale}/account`);
                 }
               });
             } else {
-              // Пользователь не авторизован - показываем модальное окно
-              setShowRegistrationModal(true);
+              // Пользователь не авторизован - редиректим на страницу аккаунта
+              router.push(`/${locale}/account`);
             }
           }).catch(() => {
-            // В случае ошибки тоже показываем модальное окно
-            setShowRegistrationModal(true);
+            // В случае ошибки редиректим на страницу аккаунта
+            router.push(`/${locale}/account`);
           });
         }, 2000);
         
