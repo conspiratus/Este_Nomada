@@ -118,6 +118,20 @@
       "cancelled": "Cancelado"
     }
   },
+  "verifyEmail": {
+    "verifying": "Verificando Email",
+    "pleaseWait": "Por favor, espere...",
+    "successTitle": "¡Email Verificado Exitosamente!",
+    "successMessage": "Su dirección de email ha sido verificada exitosamente. Ahora puede usar todas las funciones de su cuenta personal.",
+    "greeting": "¡Bienvenido, {name}!",
+    "alreadyVerifiedTitle": "Email Ya Verificado",
+    "alreadyVerifiedMessage": "Su dirección de email ya ha sido verificada anteriormente.",
+    "errorTitle": "Error de Verificación",
+    "errorMessage": "No se pudo verificar el email. El enlace puede haber expirado o ser inválido.",
+    "noToken": "Token de verificación no proporcionado.",
+    "goToAccount": "Ir a Mi Cuenta",
+    "goToHome": "Ir al Inicio"
+  },
   "registration": {
     "title": "Completar Registro",
     "subtitle": "Crea una cuenta para rastrear el estado de tu pedido",

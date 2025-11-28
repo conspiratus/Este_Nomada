@@ -862,6 +862,16 @@ class Customer(models.Model):
     email_verified = models.BooleanField(default=False, verbose_name='Email подтвержден')
     email_verification_token = models.CharField(max_length=255, blank=True, null=True, verbose_name='Токен подтверждения')
     
+    # Предпочитаемый язык интерфейса
+    preferred_locale = models.CharField(
+        max_length=10,
+        choices=[('ru', 'Русский'), ('es', 'Español'), ('en', 'English')],
+        default='ru',
+        blank=True,
+        null=True,
+        verbose_name='Предпочитаемый язык'
+    )
+    
     # Метаданные
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')

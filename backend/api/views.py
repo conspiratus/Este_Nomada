@@ -682,8 +682,19 @@ class CustomerViewSet(viewsets.ModelViewSet):
         customer.save()
         
         # Отправляем email с подтверждением (если настроено)
+        # Определяем локаль из запроса или используем 'ru' по умолчанию
+        request_locale = request.META.get('HTTP_ACCEPT_LANGUAGE', 'ru')
+        # Упрощенная логика: если в заголовке есть 'es' или 'en', используем их
+        if 'es' in request_locale.lower():
+            email_locale = 'es'
+        elif 'en' in request_locale.lower():
+            email_locale = 'en'
+        else:
+            email_locale = 'ru'
+        
         if hasattr(django_settings, 'EMAIL_HOST_USER') and django_settings.EMAIL_HOST_USER:
-            verification_url = f"{request.build_absolute_uri('/')}api/customers/verify-email/?token={verification_token}"
+            # Используем страницу подтверждения вместо API endpoint
+            verification_url = f"{request.build_absolute_uri('/')}{email_locale}/verify-email?token={verification_token}"
             send_mail(
                 subject='Подтверждение email - Este Nómada',
                 message=f'Перейдите по ссылке для подтверждения email: {verification_url}',
@@ -702,25 +713,46 @@ class CustomerViewSet(viewsets.ModelViewSet):
     def verify_email(self, request):
         """Подтверждение email по токену."""
         token = request.query_params.get('token')
+        locale = request.query_params.get('locale', 'ru')  # Получаем локаль из запроса
+        
         if not token:
             return Response(
-                {'error': 'Токен не указан'},
+                {'error': 'Токен не указан', 'success': False},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         customer = Customer.objects.filter(email_verification_token=token).first()
         if not customer:
             return Response(
-                {'error': 'Неверный токен'},
+                {'error': 'Неверный токен', 'success': False},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        # Проверяем, не подтвержден ли уже email
+        if customer.email_verified:
+            return Response({
+                'message': 'Email уже подтвержден',
+                'success': True,
+                'already_verified': True,
+                'customer_name': customer.name if customer.name else None
+            })
+        
+        # Сохраняем предпочитаемую локаль пользователя
+        if locale in ['ru', 'es', 'en']:
+            customer.preferred_locale = locale
+            customer.save()
         
         customer.email_verified = True
         customer.email_verification_token = None
         customer.is_registered = True
         customer.save()
         
-        return Response({'message': 'Email успешно подтвержден'})
+        return Response({
+            'message': 'Email успешно подтвержден',
+            'success': True,
+            'customer_name': customer.name if customer.name else None,
+            'locale': locale
+        })
     
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def profile(self, request):

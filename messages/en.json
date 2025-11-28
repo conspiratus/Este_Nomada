@@ -118,6 +118,20 @@
       "cancelled": "Cancelled"
     }
   },
+  "verifyEmail": {
+    "verifying": "Verifying Email",
+    "pleaseWait": "Please wait...",
+    "successTitle": "Email Successfully Verified!",
+    "successMessage": "Your email address has been successfully verified. You can now use all features of your personal account.",
+    "greeting": "Welcome, {name}!",
+    "alreadyVerifiedTitle": "Email Already Verified",
+    "alreadyVerifiedMessage": "Your email address has already been verified.",
+    "errorTitle": "Verification Error",
+    "errorMessage": "Failed to verify email. The link may have expired or is invalid.",
+    "noToken": "Verification token not provided.",
+    "goToAccount": "Go to Account",
+    "goToHome": "Go to Home"
+  },
   "registration": {
     "title": "Complete Registration",
     "subtitle": "Create an account to track your order status",
