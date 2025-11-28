@@ -36,10 +36,11 @@ export async function getTranslations(locale: Locale): Promise<Record<string, an
     
     try {
       const response = await fetch(url, {
-        next: { revalidate: 3600 }, // Кешируем переводы на 1 час (они редко меняются)
+        next: { revalidate: 60 }, // Кешируем переводы на 1 минуту (для быстрого обновления)
         signal: controller.signal,
         headers: {
           'Accept': 'application/json',
+          'Cache-Control': 'no-cache', // Отключаем кеш браузера
         },
       });
 
