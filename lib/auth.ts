@@ -10,8 +10,13 @@ const REFRESH_TOKEN_KEY = 'refresh_token';
  */
 export function saveTokens(access: string, refresh: string): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(ACCESS_TOKEN_KEY, access);
-  localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+  try {
+    localStorage.setItem(ACCESS_TOKEN_KEY, access);
+    localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+    console.log('[Auth] Tokens saved to localStorage');
+  } catch (error) {
+    console.error('[Auth] Error saving tokens:', error);
+  }
 }
 
 /**
@@ -19,7 +24,18 @@ export function saveTokens(access: string, refresh: string): void {
  */
 export function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
+  try {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (token) {
+      console.log('[Auth] Token found in localStorage');
+    } else {
+      console.log('[Auth] No token in localStorage');
+    }
+    return token;
+  } catch (error) {
+    console.error('[Auth] Error getting token:', error);
+    return null;
+  }
 }
 
 /**

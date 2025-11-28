@@ -113,7 +113,9 @@ export default function AccountPage() {
       
       // Проверяем наличие токена
       const token = getAccessToken();
+      console.log('[Account] Loading account data, token exists:', !!token);
       if (!token) {
+        console.log('[Account] No token, showing login form');
         setIsAuthenticated(false);
         setCustomer(null);
         setOrders([]);
