@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { getApiUrl } from '@/lib/get-api-url';
 import { Package, Clock, CheckCircle, XCircle, User, Mail, Phone, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { saveTokens, fetchWithAuth } from '@/lib/auth';
 
 interface OrderItem {
   id: number;
@@ -103,10 +104,8 @@ export default function AccountPage() {
     try {
       setLoading(true);
       
-      // Проверяем, авторизован ли пользователь
-      const authResponse = await fetch(`${API_BASE_URL}/customers/`, {
-        credentials: 'include',
-      });
+      // Проверяем, авторизован ли пользователь (используем JWT)
+      const authResponse = await fetchWithAuth(`${API_BASE_URL}/customers/`);
       
       if (authResponse.ok) {
         const customerData = await authResponse.json();
@@ -115,9 +114,7 @@ export default function AccountPage() {
           setIsAuthenticated(true);
           
           // Загружаем заказы
-          const ordersResponse = await fetch(`${API_BASE_URL}/orders/my_orders/?locale=${locale}`, {
-            credentials: 'include',
-          });
+          const ordersResponse = await fetchWithAuth(`${API_BASE_URL}/orders/my_orders/?locale=${locale}`);
           
           if (ordersResponse.ok) {
             const ordersData = await ordersResponse.json();
@@ -187,6 +184,13 @@ export default function AccountPage() {
       });
 
       if (response.ok) {
+        const data = await response.json();
+        
+        // Сохраняем JWT токены
+        if (data.access && data.refresh) {
+          saveTokens(data.access, data.refresh);
+        }
+        
         // Перезагружаем данные аккаунта
         await loadAccountData();
       } else {

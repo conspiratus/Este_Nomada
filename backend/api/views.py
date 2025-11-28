@@ -717,11 +717,22 @@ class CustomerViewSet(viewsets.ModelViewSet):
             )
         
         serializer = CustomerSerializer(customer, context={'request': request})
+        
+        # Если создан пользователь с паролем, возвращаем JWT токены
+        if password and customer.user:
+            from rest_framework_simplejwt.tokens import RefreshToken
+            refresh = RefreshToken.for_user(customer.user)
+            return Response({
+                'customer': serializer.data,
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+            }, status=status.HTTP_201_CREATED)
+        
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def login(self, request):
-        """Вход пользователя по email и паролю."""
+        """Вход пользователя по email и паролю. Возвращает JWT токены."""
         email = request.data.get('email')
         password = request.data.get('password')
         
@@ -740,7 +751,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
             )
         
         # Проверяем пароль
-        from django.contrib.auth import authenticate, login
+        from django.contrib.auth import authenticate
         authenticated_user = authenticate(request, username=user.username, password=password)
         if not authenticated_user:
             return Response(
@@ -748,8 +759,9 @@ class CustomerViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_401_UNAUTHORIZED
             )
         
-        # Авторизуем пользователя
-        login(request, authenticated_user)
+        # Генерируем JWT токены
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(authenticated_user)
         
         # Получаем или создаем клиента
         customer = Customer.objects.filter(user=authenticated_user).first()
@@ -763,7 +775,13 @@ class CustomerViewSet(viewsets.ModelViewSet):
             )
         
         serializer = CustomerSerializer(customer, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        # Возвращаем данные клиента и JWT токены
+        return Response({
+            'customer': serializer.data,
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+        }, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def verify_email(self, request):

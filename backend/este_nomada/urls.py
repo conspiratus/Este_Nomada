@@ -7,10 +7,12 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from core.admin import custom_admin_site
+from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
     path('admin/', custom_admin_site.urls),  # Используем кастомный админ-сайт
     path('api/', include('api.urls')),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('chef/', include('core.urls')),
 ]
 

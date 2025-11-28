@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, User, Mail, Phone, Lock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getApiUrl } from '@/lib/get-api-url';
+import { saveTokens } from '@/lib/auth';
 
 interface RegistrationModalProps {
   isOpen: boolean;
@@ -82,6 +83,13 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess, initialD
       });
 
       if (response.ok) {
+        const data = await response.json();
+        
+        // Сохраняем JWT токены, если они есть
+        if (data.access && data.refresh) {
+          saveTokens(data.access, data.refresh);
+        }
+        
         setSuccess(true);
         setTimeout(() => {
           // Перенаправляем в ЛК сразу после регистрации

@@ -7,6 +7,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from "framer-motion";
 import { locales, type Locale } from '@/lib/locales';
+import { fetchWithAuth } from '@/lib/auth';
 
 interface HeaderProps {
   locale?: string;
@@ -62,9 +63,10 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
     
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/customers/', {
-          credentials: 'include',
-        });
+        const apiUrl = typeof window !== 'undefined' 
+          ? window.location.origin + '/api'
+          : '/api';
+        const response = await fetchWithAuth(`${apiUrl}/customers/`);
         if (response.ok) {
           const customers = await response.json();
           setIsAuthenticated(customers && customers.length > 0);
