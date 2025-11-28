@@ -10,7 +10,7 @@ from .models import (
     Story, StoryTranslation, MenuItem, MenuItemTranslation, MenuItemImage, MenuItemAttribute,
     HeroImage, HeroSettings, Settings, Order, OrderItem, InstagramPost, Translation,
     ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation,
-    DishTTK, TTKVersionHistory
+    DishTTK, TTKVersionHistory, Customer, Cart, CartItem, Favorite, DeliverySettings
 )
 
 # Стандартная модель User уже зарегистрирована в Django Admin
@@ -345,14 +345,20 @@ class OrderItemInline(admin.TabularInline):
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     """Админка для заказов."""
-    list_display = ['id', 'name', 'phone', 'status', 'created_at']
+    list_display = ['id', 'customer', 'name', 'email_display', 'phone_display', 'delivery_cost', 'status', 'created_at']
     list_filter = ['status', 'created_at']
-    search_fields = ['name', 'phone', 'comment']
-    readonly_fields = ['created_at', 'updated_at']
+    search_fields = ['name', 'email', 'phone', 'comment', 'postal_code']
+    readonly_fields = ['created_at', 'updated_at', 'email_display', 'phone_display', 'total_display']
     inlines = [OrderItemInline]
     fieldsets = (
+        ('Клиент', {
+            'fields': ('customer', 'name', 'email', 'email_display', 'phone', 'phone_display')
+        }),
+        ('Адрес доставки', {
+            'fields': ('postal_code', 'address', 'delivery_cost', 'delivery_distance')
+        }),
         ('Информация о заказе', {
-            'fields': ('name', 'phone', 'comment', 'status')
+            'fields': ('comment', 'status', 'total_display')
         }),
         ('AI обработка', {
             'fields': ('ai_response',),
@@ -363,6 +369,37 @@ class OrderAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    def email_display(self, obj):
+        """Отображение маскированного email."""
+        if obj.customer:
+            return obj.customer.get_email_display()
+        if obj.email:
+            parts = obj.email.split('@')
+            if len(parts) == 2:
+                username = parts[0]
+                domain = parts[1]
+                if len(username) > 2:
+                    masked = username[0] + '*' * (len(username) - 2) + username[-1]
+                else:
+                    masked = '*' * len(username)
+                return f'{masked}@{domain}'
+        return obj.email
+    email_display.short_description = 'Email'
+    
+    def phone_display(self, obj):
+        """Отображение маскированного телефона."""
+        if obj.customer:
+            return obj.customer.get_phone_display()
+        if obj.phone and len(obj.phone) > 4:
+            return obj.phone[:2] + '*' * (len(obj.phone) - 4) + obj.phone[-2:]
+        return obj.phone
+    phone_display.short_description = 'Телефон'
+    
+    def total_display(self, obj):
+        """Отображение общей стоимости заказа."""
+        return f'{obj.get_total():.2f}€'
+    total_display.short_description = 'Общая стоимость'
 
 
 @admin.register(InstagramPost)
@@ -652,4 +689,138 @@ class TTKVersionHistoryAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+# ============================================
+# ЛИЧНЫЙ КАБИНЕТ И КОРЗИНА
+# ============================================
+
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    """Админка для клиентов."""
+    list_display = ['id', 'name', 'email_display', 'phone_display', 'is_registered', 'email_verified', 'created_at']
+    list_filter = ['is_registered', 'email_verified', 'created_at']
+    search_fields = ['name', 'email', 'phone']
+    readonly_fields = ['created_at', 'updated_at', 'last_login', 'email_display', 'phone_display']
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('user', 'name', 'email', 'email_display', 'phone', 'phone_display')
+        }),
+        ('Адрес', {
+            'fields': ('postal_code', 'address')
+        }),
+        ('Статус', {
+            'fields': ('is_registered', 'email_verified', 'email_verification_token')
+        }),
+        ('Даты', {
+            'fields': ('created_at', 'updated_at', 'last_login'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def email_display(self, obj):
+        """Отображение маскированного email."""
+        return obj.get_email_display()
+    email_display.short_description = 'Email (маскированный)'
+    
+    def phone_display(self, obj):
+        """Отображение маскированного телефона."""
+        return obj.get_phone_display()
+    phone_display.short_description = 'Телефон (маскированный)'
+
+
+class CartItemInline(admin.TabularInline):
+    """Inline для элементов корзины."""
+    model = CartItem
+    extra = 0
+    readonly_fields = ['menu_item', 'quantity', 'created_at', 'updated_at']
+    fields = ['menu_item', 'quantity', 'created_at', 'updated_at']
+
+
+@admin.register(Cart)
+class CartAdmin(admin.ModelAdmin):
+    """Админка для корзин."""
+    list_display = ['id', 'customer', 'session_key_short', 'total_display', 'total_items_display', 'created_at']
+    list_filter = ['created_at', 'updated_at']
+    search_fields = ['customer__name', 'customer__email', 'session_key']
+    readonly_fields = ['created_at', 'updated_at', 'total_display', 'total_items_display']
+    inlines = [CartItemInline]
+    fieldsets = (
+        ('Информация', {
+            'fields': ('customer', 'session_key')
+        }),
+        ('Статистика', {
+            'fields': ('total_display', 'total_items_display')
+        }),
+        ('Даты', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def session_key_short(self, obj):
+        """Короткое отображение session_key."""
+        if obj.session_key:
+            return obj.session_key[:20] + '...' if len(obj.session_key) > 20 else obj.session_key
+        return '-'
+    session_key_short.short_description = 'Сессия'
+    
+    def total_display(self, obj):
+        """Отображение общей стоимости."""
+        return f'{obj.get_total():.2f}€'
+    total_display.short_description = 'Общая стоимость'
+    
+    def total_items_display(self, obj):
+        """Отображение количества товаров."""
+        return obj.get_total_items()
+    total_items_display.short_description = 'Количество товаров'
+
+
+@admin.register(Favorite)
+class FavoriteAdmin(admin.ModelAdmin):
+    """Админка для избранного."""
+    list_display = ['id', 'customer', 'menu_item', 'session_key_short', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['customer__name', 'customer__email', 'menu_item__name', 'session_key']
+    readonly_fields = ['created_at']
+    
+    def session_key_short(self, obj):
+        """Короткое отображение session_key."""
+        if obj.session_key:
+            return obj.session_key[:20] + '...' if len(obj.session_key) > 20 else obj.session_key
+        return '-'
+    session_key_short.short_description = 'Сессия'
+
+
+class DeliverySettingsAdmin(admin.ModelAdmin):
+    """Админка для настроек доставки."""
+    def has_add_permission(self, request):
+        # Разрешаем только один экземпляр
+        return not DeliverySettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    readonly_fields = ['updated_at']
+    fieldsets = (
+        ('Координаты точки доставки', {
+            'fields': ('delivery_point_latitude', 'delivery_point_longitude'),
+            'description': 'Координаты вашей точки доставки для расчета расстояния'
+        }),
+        ('Настройки стоимости доставки', {
+            'fields': ('base_delivery_cost', 'cost_per_km', 'free_delivery_threshold', 'max_delivery_distance'),
+            'description': 'Базовая стоимость, стоимость за км, порог бесплатной доставки, максимальное расстояние'
+        }),
+        ('Настройки ЛК и корзины', {
+            'fields': ('cart_enabled', 'favorites_enabled', 'registration_required'),
+            'description': 'Включение/выключение функций личного кабинета'
+        }),
+        ('Дата обновления', {
+            'fields': ('updated_at',),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+admin.site.register(DeliverySettings, DeliverySettingsAdmin)
 

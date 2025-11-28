@@ -3,7 +3,6 @@ import AboutBrand from "@/components/sections/AboutBrand";
 import MenuWrapper from "@/components/sections/MenuWrapper";
 import StoriesWrapper from "@/components/sections/StoriesWrapper";
 import PathMap from "@/components/sections/PathMap";
-import OrderForm from "@/components/sections/OrderForm";
 import CustomSections from "@/components/sections/CustomSections";
 import { locales, defaultLocale, type Locale } from '@/lib/locales';
 
@@ -23,7 +22,6 @@ export default async function Home({ params }: { params: { locale: string } }) {
       <MenuWrapper locale={locale} />
       <StoriesWrapper locale={locale} />
       <PathMap />
-      <OrderForm />
       <CustomSections />
     </>
   );

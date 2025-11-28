@@ -179,17 +179,12 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
           >
             {t('ourDishes')}
           </Link>
-          <button
-            onClick={() => {
-              const orderSection = document.getElementById("order");
-              if (orderSection) {
-                orderSection.scrollIntoView({ behavior: "smooth" });
-              }
-            }}
+          <Link
+            href={`/${locale}/order`}
             className="px-6 py-2 bg-saffron-500 text-white rounded-full hover:bg-saffron-600 transition-colors font-medium"
           >
             {t('order')}
-          </button>
+          </Link>
         </div>
 
         {/* Language Switcher - Dropdown */}
@@ -335,18 +330,13 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
               >
                 {t('ourDishes')}
               </Link>
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  const orderSection = document.getElementById("order");
-                  if (orderSection) {
-                    orderSection.scrollIntoView({ behavior: "smooth" });
-                  }
-                }}
-                className="w-full px-6 py-2 bg-saffron-500 text-white rounded-full hover:bg-saffron-600 transition-colors font-medium"
+              <Link
+                href={`/${locale}/order`}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="w-full px-6 py-2 bg-saffron-500 text-white rounded-full hover:bg-saffron-600 transition-colors font-medium text-center block"
               >
                 {t('order')}
-              </button>
+              </Link>
             </div>
           </motion.div>
         )}

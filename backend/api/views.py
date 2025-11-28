@@ -6,7 +6,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
-from core.models import Story, MenuItem, Settings, Order, OrderItem, InstagramPost, Translation, HeroImage, HeroSettings, ContentSection, FooterSection
+from core.models import (
+    Story, MenuItem, Settings, Order, OrderItem, InstagramPost, Translation,
+    HeroImage, HeroSettings, ContentSection, FooterSection, DeliverySettings,
+    Customer, Cart, CartItem, Favorite
+)
 from .serializers import (
     StorySerializer, MenuItemSerializer, SettingsSerializer,
     OrderSerializer, InstagramPostSerializer, TranslationSerializer,
@@ -136,23 +140,71 @@ class OrderViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """Создание заказа с элементами."""
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        data = request.data.copy()
         
-        selected_dishes = request.data.get('selected_dishes', [])
+        # Определяем customer
+        customer = None
+        if request.user.is_authenticated:
+            customer = Customer.objects.filter(user=request.user).first()
+        else:
+            # Для неавторизованных создаем или находим customer по email
+            email = data.get('email')
+            phone = data.get('phone')
+            if email:
+                customer = Customer.objects.filter(email=email).first()
+                if not customer:
+                    customer = Customer.objects.create(
+                        email=email,
+                        phone=phone or '',
+                        name=data.get('name', ''),
+                        is_registered=False,
+                        email_verified=False
+                    )
+        
+        if customer:
+            data['customer'] = customer.id
+        
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
         order = serializer.save()
         
         # Создаём элементы заказа
-        for dish_id in selected_dishes:
+        selected_dishes = request.data.get('selected_dishes', [])
+        order_total = 0
+        
+        for dish_data in selected_dishes:
+            # Поддерживаем оба формата: список ID и список словарей
+            if isinstance(dish_data, dict):
+                menu_item_id = dish_data.get('menu_item_id') or dish_data.get('id')
+                quantity = int(dish_data.get('quantity', 1))
+            else:
+                # Старый формат: просто ID
+                menu_item_id = dish_data
+                quantity = 1
+            
             try:
-                menu_item = MenuItem.objects.get(id=dish_id, active=True)
+                menu_item = MenuItem.objects.get(id=menu_item_id, active=True)
                 OrderItem.objects.create(
                     order=order,
                     menu_item=menu_item,
-                    quantity=1
+                    quantity=quantity
                 )
+                if menu_item.price:
+                    order_total += float(menu_item.price) * quantity
             except MenuItem.DoesNotExist:
                 pass
+        
+        # Рассчитываем стоимость доставки, если указан postal_code
+        postal_code = data.get('postal_code')
+        if postal_code:
+            delivery_settings = DeliverySettings.get_settings()
+            delivery_result = delivery_settings.calculate_delivery_cost(postal_code, order_total)
+            if delivery_result.get('success'):
+                order.delivery_cost = delivery_result.get('cost', 0)
+                order.delivery_distance = delivery_result.get('distance')
+                if delivery_result.get('address'):
+                    order.address = delivery_result.get('address')
+                order.save()
         
         # Здесь будет обработка через OpenAI (в задаче Celery)
         from .tasks import process_order_with_ai
@@ -310,4 +362,377 @@ class FooterSectionViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+
+
+# ============================================
+# ЛИЧНЫЙ КАБИНЕТ И КОРЗИНА
+# ============================================
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings as django_settings
+import secrets
+from .serializers import (
+    CustomerSerializer, CartSerializer, CartItemDetailSerializer,
+    FavoriteSerializer, DeliverySettingsSerializer
+)
+
+User = get_user_model()
+
+
+class CustomerViewSet(viewsets.ModelViewSet):
+    """ViewSet для клиентов."""
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Пользователь видит только свой профиль."""
+        if self.request.user.is_staff:
+            return Customer.objects.all()
+        return Customer.objects.filter(user=self.request.user)
+    
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def register(self, request):
+        """Регистрация нового клиента."""
+        email = request.data.get('email')
+        phone = request.data.get('phone')
+        name = request.data.get('name', '')
+        password = request.data.get('password')
+        
+        if not email or not phone:
+            return Response(
+                {'error': 'Email и телефон обязательны'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Проверяем, существует ли клиент с таким email
+        customer = Customer.objects.filter(email=email).first()
+        
+        if customer and customer.is_registered:
+            return Response(
+                {'error': 'Клиент с таким email уже зарегистрирован'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Создаем или обновляем клиента
+        if customer:
+            customer.name = name
+            customer.phone = phone
+        else:
+            customer = Customer.objects.create(
+                email=email,
+                phone=phone,
+                name=name,
+                is_registered=False,
+                email_verified=False
+            )
+        
+        # Если указан пароль, создаем пользователя Django
+        if password:
+            # Проверяем, существует ли пользователь
+            user = User.objects.filter(email=email).first()
+            if not user:
+                user = User.objects.create_user(
+                    username=email,
+                    email=email,
+                    password=password
+                )
+            customer.user = user
+            customer.is_registered = True
+        
+        # Генерируем токен подтверждения email
+        verification_token = secrets.token_urlsafe(32)
+        customer.email_verification_token = verification_token
+        customer.save()
+        
+        # Отправляем email с подтверждением
+        if hasattr(django_settings, 'EMAIL_HOST_USER') and django_settings.EMAIL_HOST_USER:
+            verification_url = f"{request.build_absolute_uri('/')}api/customers/verify-email/?token={verification_token}"
+            send_mail(
+                subject='Подтверждение email - Este Nómada',
+                message=f'Перейдите по ссылке для подтверждения email: {verification_url}',
+                from_email=django_settings.EMAIL_HOST_USER,
+                recipient_list=[email],
+                fail_silently=True,
+            )
+        
+        serializer = self.get_serializer(customer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+    def verify_email(self, request):
+        """Подтверждение email по токену."""
+        token = request.query_params.get('token')
+        if not token:
+            return Response(
+                {'error': 'Токен не указан'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        customer = Customer.objects.filter(email_verification_token=token).first()
+        if not customer:
+            return Response(
+                {'error': 'Неверный токен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        customer.email_verified = True
+        customer.email_verification_token = None
+        customer.is_registered = True
+        customer.save()
+        
+        return Response({'message': 'Email успешно подтвержден'})
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def profile(self, request):
+        """Получить профиль текущего пользователя."""
+        customer = Customer.objects.filter(user=request.user).first()
+        if not customer:
+            return Response(
+                {'error': 'Профиль не найден'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        serializer = self.get_serializer(customer)
+        return Response(serializer.data)
+
+
+class CartViewSet(viewsets.ModelViewSet):
+    """ViewSet для корзины."""
+    serializer_class = CartSerializer
+    permission_classes = [AllowAny]
+    
+    def get_queryset(self):
+        """Получить корзину для текущего пользователя или сессии."""
+        if self.request.user.is_authenticated:
+            customer = Customer.objects.filter(user=self.request.user).first()
+            if customer:
+                return Cart.objects.filter(customer=customer)
+        # Для неавторизованных используем session_key
+        session_key = self.request.session.session_key
+        if not session_key:
+            self.request.session.create()
+            session_key = self.request.session.session_key
+        return Cart.objects.filter(session_key=session_key)
+    
+    def list(self, request, *args, **kwargs):
+        """Возвращает корзину (создает, если не существует)."""
+        cart = self.get_object()
+        serializer = self.get_serializer(cart, context={'request': request})
+        return Response(serializer.data)
+    
+    def get_object(self):
+        """Получить или создать корзину."""
+        queryset = self.get_queryset()
+        cart = queryset.first()
+        
+        if not cart:
+            if self.request.user.is_authenticated:
+                customer = Customer.objects.filter(user=self.request.user).first()
+                if customer:
+                    cart = Cart.objects.create(customer=customer)
+            else:
+                session_key = self.request.session.session_key
+                if not session_key:
+                    self.request.session.create()
+                    session_key = self.request.session.session_key
+                cart = Cart.objects.create(session_key=session_key)
+        
+        return cart
+    
+    @action(detail=True, methods=['post'])
+    def add_item(self, request, pk=None):
+        """Добавить элемент в корзину."""
+        cart = self.get_object()
+        menu_item_id = request.data.get('menu_item_id')
+        quantity = int(request.data.get('quantity', 1))
+        
+        if not menu_item_id:
+            return Response(
+                {'error': 'menu_item_id обязателен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            menu_item = MenuItem.objects.get(id=menu_item_id, active=True)
+        except MenuItem.DoesNotExist:
+            return Response(
+                {'error': 'Блюдо не найдено'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        cart_item, created = CartItem.objects.get_or_create(
+            cart=cart,
+            menu_item=menu_item,
+            defaults={'quantity': quantity}
+        )
+        
+        if not created:
+            cart_item.quantity += quantity
+            cart_item.save()
+        
+        serializer = CartItemDetailSerializer(cart_item, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['post'])
+    def update_item(self, request, pk=None):
+        """Обновить количество элемента в корзине."""
+        cart = self.get_object()
+        cart_item_id = request.data.get('cart_item_id')
+        quantity = int(request.data.get('quantity', 1))
+        
+        if not cart_item_id:
+            return Response(
+                {'error': 'cart_item_id обязателен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            cart_item = CartItem.objects.get(id=cart_item_id, cart=cart)
+        except CartItem.DoesNotExist:
+            return Response(
+                {'error': 'Элемент корзины не найден'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if quantity <= 0:
+            cart_item.delete()
+            return Response({'message': 'Элемент удален из корзины'})
+        
+        cart_item.quantity = quantity
+        cart_item.save()
+        
+        serializer = CartItemDetailSerializer(cart_item, context={'request': request})
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['delete'])
+    def remove_item(self, request, pk=None):
+        """Удалить элемент из корзины."""
+        cart = self.get_object()
+        cart_item_id = request.query_params.get('cart_item_id')
+        
+        if not cart_item_id:
+            return Response(
+                {'error': 'cart_item_id обязателен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            cart_item = CartItem.objects.get(id=cart_item_id, cart=cart)
+            cart_item.delete()
+            return Response({'message': 'Элемент удален из корзины'})
+        except CartItem.DoesNotExist:
+            return Response(
+                {'error': 'Элемент корзины не найден'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class FavoriteViewSet(viewsets.ModelViewSet):
+    """ViewSet для избранного."""
+    serializer_class = FavoriteSerializer
+    permission_classes = [AllowAny]
+    
+    def get_queryset(self):
+        """Получить избранное для текущего пользователя или сессии."""
+        if self.request.user.is_authenticated:
+            customer = Customer.objects.filter(user=self.request.user).first()
+            if customer:
+                return Favorite.objects.filter(customer=customer)
+        # Для неавторизованных используем session_key
+        session_key = self.request.session.session_key
+        if not session_key:
+            self.request.session.create()
+            session_key = self.request.session.session_key
+        return Favorite.objects.filter(session_key=session_key)
+    
+    def create(self, request, *args, **kwargs):
+        """Добавить в избранное."""
+        menu_item_id = request.data.get('menu_item_id')
+        
+        if not menu_item_id:
+            return Response(
+                {'error': 'menu_item_id обязателен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            menu_item = MenuItem.objects.get(id=menu_item_id, active=True)
+        except MenuItem.DoesNotExist:
+            return Response(
+                {'error': 'Блюдо не найдено'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Определяем customer или session_key
+        customer = None
+        session_key = None
+        
+        if request.user.is_authenticated:
+            customer = Customer.objects.filter(user=request.user).first()
+        else:
+            session_key = request.session.session_key
+            if not session_key:
+                request.session.create()
+                session_key = request.session.session_key
+        
+        # Проверяем, не добавлено ли уже
+        if customer:
+            favorite, created = Favorite.objects.get_or_create(
+                customer=customer,
+                menu_item=menu_item
+            )
+        else:
+            favorite, created = Favorite.objects.get_or_create(
+                session_key=session_key,
+                menu_item=menu_item
+            )
+        
+        if not created:
+            return Response(
+                {'error': 'Уже в избранном'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        serializer = self.get_serializer(favorite, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class DeliverySettingsViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet для настроек доставки."""
+    queryset = DeliverySettings.objects.all()
+    serializer_class = DeliverySettingsSerializer
+    permission_classes = [AllowAny]
+    
+    def get_object(self):
+        """Всегда возвращаем единственный экземпляр."""
+        return DeliverySettings.get_settings()
+    
+    def list(self, request, *args, **kwargs):
+        """Переопределяем list для возврата единственного объекта."""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def calculate(self, request):
+        """Рассчитать стоимость доставки."""
+        postal_code = request.data.get('postal_code')
+        order_total = float(request.data.get('order_total', 0))
+        
+        if not postal_code:
+            return Response(
+                {'error': 'Почтовый индекс обязателен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        settings = DeliverySettings.get_settings()
+        result = settings.calculate_delivery_cost(postal_code, order_total)
+        
+        return Response(result, status=status.HTTP_200_OK if result.get('success') else status.HTTP_400_BAD_REQUEST)
 

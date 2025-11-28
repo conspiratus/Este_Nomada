@@ -28,5 +28,8 @@ markdown==3.5.1
 # Безопасность
 cryptography==42.0.2
 
+# Геолокация для расчета доставки
+geopy==2.4.1
+
 # Production Server
 gunicorn==21.2.0

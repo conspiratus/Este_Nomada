@@ -5,9 +5,76 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils.text import slugify
 from django.core.validators import MinValueValidator
+from cryptography.fernet import Fernet
+from django.conf import settings as django_settings
+import base64
+import os
 
 # Используем стандартную модель User Django
 # Для расширения функциональности можно использовать UserProfile
+
+
+# ============================================
+# ШИФРОВАНИЕ ДАННЫХ
+# ============================================
+
+def get_encryption_key():
+    """Получить ключ шифрования из настроек или создать новый."""
+    key = getattr(django_settings, 'ENCRYPTION_KEY', None)
+    if not key:
+        # Генерируем ключ, если его нет (для разработки)
+        key = Fernet.generate_key().decode()
+        print(f"WARNING: Generated new encryption key. Add to settings: ENCRYPTION_KEY={key}")
+    elif isinstance(key, str):
+        key = key.encode()
+    return Fernet(key)
+
+
+class EncryptedField(models.TextField):
+    """Поле для хранения зашифрованных данных."""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    def from_db_value(self, value, expression, connection):
+        """Расшифровка при чтении из БД."""
+        if value is None:
+            return value
+        if not value:
+            return value
+        try:
+            f = get_encryption_key()
+            # Проверяем, зашифровано ли значение (начинается с gAAAAAB)
+            if isinstance(value, str) and value.startswith('gAAAAAB'):
+                decrypted = f.decrypt(value.encode())
+                return decrypted.decode()
+            # Если не зашифровано, возвращаем как есть (для миграций)
+            return value
+        except Exception as e:
+            # Если не удалось расшифровать, возвращаем как есть (для миграций)
+            return value
+    
+    def to_python(self, value):
+        """Преобразование в Python объект."""
+        if isinstance(value, str) or value is None:
+            return value
+        return str(value)
+    
+    def get_prep_value(self, value):
+        """Шифрование перед сохранением в БД."""
+        if value is None or value == '':
+            return value
+        try:
+            f = get_encryption_key()
+            # Проверяем, не зашифровано ли уже значение
+            if isinstance(value, str) and value.startswith('gAAAAAB'):
+                return value
+            encrypted = f.encrypt(value.encode())
+            return encrypted.decode()
+        except Exception as e:
+            # Если не удалось зашифровать, возвращаем как есть
+            print(f"Encryption error: {e}")
+            return value
 
 
 class Story(models.Model):
@@ -303,11 +370,46 @@ class Order(models.Model):
         ('cancelled', 'Отменен'),
     ]
 
+    # Связь с клиентом (опционально, для неавторизованных может быть None)
+    customer = models.ForeignKey(
+        'Customer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='orders',
+        verbose_name='Клиент'
+    )
+    
+    # Контактная информация (для неавторизованных заказов)
     name = models.CharField(max_length=255, verbose_name='Имя')
-    phone = models.CharField(max_length=50, verbose_name='Телефон')
+    email = EncryptedField(max_length=255, blank=True, null=True, verbose_name='Email')
+    phone = EncryptedField(max_length=50, blank=True, null=True, verbose_name='Телефон')
+    
+    # Адрес доставки
+    postal_code = models.CharField(max_length=20, blank=True, null=True, verbose_name='Почтовый индекс')
+    address = models.TextField(blank=True, null=True, verbose_name='Адрес доставки')
+    
+    # Доставка
+    delivery_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name='Стоимость доставки (€)'
+    )
+    delivery_distance = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Расстояние доставки (км)'
+    )
+    
+    # Комментарий и статус
     comment = models.TextField(blank=True, null=True, verbose_name='Комментарий')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='Статус')
     ai_response = models.TextField(blank=True, null=True, verbose_name='Ответ AI')
+    
+    # Метаданные
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -316,6 +418,11 @@ class Order(models.Model):
         verbose_name = 'Заказ'
         verbose_name_plural = 'Заказы'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['customer']),
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+        ]
 
     def __str__(self):
         return f'Заказ #{self.id} от {self.name}'
@@ -323,6 +430,15 @@ class Order(models.Model):
     def get_selected_dishes(self):
         """Получить выбранные блюда."""
         return self.order_items.all()
+    
+    def get_total(self):
+        """Получить общую стоимость заказа (блюда + доставка)."""
+        items_total = sum(
+            item.menu_item.price * item.quantity 
+            for item in self.order_items.all() 
+            if item.menu_item.price
+        )
+        return float(items_total) + float(self.delivery_cost)
 
 
 class OrderItem(models.Model):
@@ -658,4 +774,346 @@ class TTKVersionHistory(models.Model):
 
     def __str__(self):
         return f'Версия {self.version} ТТК: {self.ttk.menu_item.name}'
+
+
+# ============================================
+# ЛИЧНЫЙ КАБИНЕТ И КОРЗИНА
+# ============================================
+
+class Customer(models.Model):
+    """Модель клиента."""
+    # Связь с пользователем Django (опционально, для зарегистрированных)
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='customer',
+        verbose_name='Пользователь'
+    )
+    
+    # Персональные данные (зашифрованы)
+    email = EncryptedField(max_length=255, verbose_name='Email')
+    phone = EncryptedField(max_length=50, verbose_name='Телефон')
+    name = models.CharField(max_length=255, blank=True, null=True, verbose_name='Имя')
+    
+    # Адрес доставки
+    postal_code = models.CharField(max_length=20, blank=True, null=True, verbose_name='Почтовый индекс')
+    address = models.TextField(blank=True, null=True, verbose_name='Адрес')
+    
+    # Статус регистрации
+    is_registered = models.BooleanField(default=False, verbose_name='Зарегистрирован')
+    email_verified = models.BooleanField(default=False, verbose_name='Email подтвержден')
+    email_verification_token = models.CharField(max_length=255, blank=True, null=True, verbose_name='Токен подтверждения')
+    
+    # Метаданные
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+    last_login = models.DateTimeField(null=True, blank=True, verbose_name='Последний вход')
+    
+    class Meta:
+        db_table = 'customers'
+        verbose_name = 'Клиент'
+        verbose_name_plural = 'Клиенты'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['email']),
+            models.Index(fields=['is_registered']),
+            models.Index(fields=['email_verified']),
+        ]
+    
+    def __str__(self):
+        return f'{self.name or "Клиент"} ({self.email})'
+    
+    def get_email_display(self):
+        """Получить email для отображения (маскированный)."""
+        if self.email:
+            parts = self.email.split('@')
+            if len(parts) == 2:
+                username = parts[0]
+                domain = parts[1]
+                if len(username) > 2:
+                    masked = username[0] + '*' * (len(username) - 2) + username[-1]
+                else:
+                    masked = '*' * len(username)
+                return f'{masked}@{domain}'
+        return self.email
+    
+    def get_phone_display(self):
+        """Получить телефон для отображения (маскированный)."""
+        if self.phone and len(self.phone) > 4:
+            return self.phone[:2] + '*' * (len(self.phone) - 4) + self.phone[-2:]
+        return self.phone
+
+
+class Cart(models.Model):
+    """Модель корзины."""
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name='carts',
+        null=True,
+        blank=True,
+        verbose_name='Клиент'
+    )
+    # Для неавторизованных пользователей используем session_key
+    session_key = models.CharField(max_length=255, blank=True, null=True, verbose_name='Ключ сессии')
+    
+    # Метаданные
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+    
+    class Meta:
+        db_table = 'carts'
+        verbose_name = 'Корзина'
+        verbose_name_plural = 'Корзины'
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['customer']),
+            models.Index(fields=['session_key']),
+        ]
+    
+    def __str__(self):
+        if self.customer:
+            return f'Корзина клиента {self.customer.name or self.customer.email}'
+        return f'Корзина (сессия: {self.session_key[:10] if self.session_key else "N/A"}...)'
+    
+    def get_total(self):
+        """Получить общую стоимость корзины."""
+        return sum(item.get_subtotal() for item in self.items.all())
+    
+    def get_total_items(self):
+        """Получить общее количество товаров."""
+        return sum(item.quantity for item in self.items.all())
+
+
+class CartItem(models.Model):
+    """Модель элемента корзины."""
+    cart = models.ForeignKey(
+        Cart,
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name='Корзина'
+    )
+    menu_item = models.ForeignKey(
+        MenuItem,
+        on_delete=models.CASCADE,
+        verbose_name='Блюдо'
+    )
+    quantity = models.IntegerField(default=1, validators=[MinValueValidator(1)], verbose_name='Количество')
+    
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+    
+    class Meta:
+        db_table = 'cart_items'
+        verbose_name = 'Элемент корзины'
+        verbose_name_plural = 'Элементы корзины'
+        unique_together = [['cart', 'menu_item']]
+        indexes = [
+            models.Index(fields=['cart']),
+        ]
+    
+    def __str__(self):
+        return f'{self.menu_item.name} x{self.quantity}'
+    
+    def get_subtotal(self):
+        """Получить стоимость элемента."""
+        if self.menu_item.price:
+            return float(self.menu_item.price) * self.quantity
+        return 0
+
+
+class Favorite(models.Model):
+    """Модель избранного."""
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name='favorites',
+        null=True,
+        blank=True,
+        verbose_name='Клиент'
+    )
+    # Для неавторизованных пользователей используем session_key
+    session_key = models.CharField(max_length=255, blank=True, null=True, verbose_name='Ключ сессии')
+    
+    menu_item = models.ForeignKey(
+        MenuItem,
+        on_delete=models.CASCADE,
+        verbose_name='Блюдо'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+    
+    class Meta:
+        db_table = 'favorites'
+        verbose_name = 'Избранное'
+        verbose_name_plural = 'Избранное'
+        unique_together = [['customer', 'menu_item'], ['session_key', 'menu_item']]
+        indexes = [
+            models.Index(fields=['customer']),
+            models.Index(fields=['session_key']),
+        ]
+    
+    def __str__(self):
+        if self.customer:
+            return f'Избранное: {self.menu_item.name} (клиент: {self.customer.name or self.customer.email})'
+        return f'Избранное: {self.menu_item.name} (сессия)'
+
+
+class DeliverySettings(models.Model):
+    """Настройки доставки."""
+    # Координаты точки доставки (для расчета расстояния)
+    delivery_point_latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        verbose_name='Широта точки доставки',
+        help_text='Широта вашей точки доставки (например, 43.3619 для Астурии)'
+    )
+    delivery_point_longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        verbose_name='Долгота точки доставки',
+        help_text='Долгота вашей точки доставки (например, -5.8494 для Астурии)'
+    )
+    
+    # Настройки стоимости доставки
+    base_delivery_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name='Базовая стоимость доставки (€)',
+        help_text='Минимальная стоимость доставки'
+    )
+    cost_per_km = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name='Стоимость за километр (€)',
+        help_text='Дополнительная стоимость за каждый километр расстояния'
+    )
+    free_delivery_threshold = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Порог бесплатной доставки (€)',
+        help_text='Если сумма заказа превышает это значение, доставка бесплатна'
+    )
+    max_delivery_distance = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Максимальное расстояние доставки (км)',
+        help_text='Максимальное расстояние, на которое возможна доставка'
+    )
+    
+    # Настройки ЛК и корзины
+    cart_enabled = models.BooleanField(default=True, verbose_name='Корзина включена')
+    favorites_enabled = models.BooleanField(default=True, verbose_name='Избранное включено')
+    registration_required = models.BooleanField(
+        default=False,
+        verbose_name='Требуется регистрация для заказа',
+        help_text='Если включено, пользователи должны регистрироваться для оформления заказа'
+    )
+    
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+    
+    class Meta:
+        db_table = 'delivery_settings'
+        verbose_name = 'Настройки доставки и ЛК'
+        verbose_name_plural = 'Настройки доставки и ЛК'
+    
+    def __str__(self):
+        return 'Настройки доставки и ЛК'
+    
+    def save(self, *args, **kwargs):
+        # Разрешаем только один экземпляр
+        self.pk = 1
+        super().save(*args, **kwargs)
+    
+    def delete(self, *args, **kwargs):
+        # Не позволяем удалять настройки
+        pass
+    
+    @classmethod
+    def get_settings(cls):
+        """Получить единственный экземпляр настроек."""
+        obj, created = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                'delivery_point_latitude': 43.3619,  # Астурия по умолчанию
+                'delivery_point_longitude': -5.8494,
+                'base_delivery_cost': 5.00,
+                'cost_per_km': 0.50,
+            }
+        )
+        return obj
+    
+    def calculate_delivery_cost(self, postal_code: str, order_total: float = 0) -> dict:
+        """
+        Рассчитать стоимость доставки для почтового индекса.
+        Возвращает dict с информацией о доставке.
+        """
+        from geopy.geocoders import Nominatim
+        from geopy.distance import geodesic
+        
+        try:
+            # Получаем координаты по почтовому индексу
+            geolocator = Nominatim(user_agent="este_nomada")
+            location = geolocator.geocode(f"{postal_code}, Spain", timeout=10)
+            
+            if not location:
+                return {
+                    'success': False,
+                    'error': 'Не удалось найти адрес по почтовому индексу',
+                    'distance': None,
+                    'cost': None
+                }
+            
+            # Рассчитываем расстояние
+            delivery_point = (float(self.delivery_point_latitude), float(self.delivery_point_longitude))
+            customer_point = (location.latitude, location.longitude)
+            distance_km = geodesic(delivery_point, customer_point).kilometers
+            
+            # Проверяем максимальное расстояние
+            if self.max_delivery_distance and distance_km > float(self.max_delivery_distance):
+                return {
+                    'success': False,
+                    'error': f'Доставка невозможна: расстояние {distance_km:.1f} км превышает максимальное {self.max_delivery_distance} км',
+                    'distance': distance_km,
+                    'cost': None
+                }
+            
+            # Проверяем бесплатную доставку
+            if self.free_delivery_threshold and order_total >= float(self.free_delivery_threshold):
+                return {
+                    'success': True,
+                    'distance': distance_km,
+                    'cost': 0,
+                    'free_delivery': True,
+                    'address': location.address
+                }
+            
+            # Рассчитываем стоимость
+            base_cost = float(self.base_delivery_cost)
+            distance_cost = distance_km * float(self.cost_per_km)
+            total_cost = base_cost + distance_cost
+            
+            return {
+                'success': True,
+                'distance': distance_km,
+                'cost': round(total_cost, 2),
+                'free_delivery': False,
+                'address': location.address
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Ошибка при расчете доставки: {str(e)}',
+                'distance': None,
+                'cost': None
+            }
 

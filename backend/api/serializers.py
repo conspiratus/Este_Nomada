@@ -6,7 +6,8 @@ import markdown
 from core.models import (
     Story, StoryTranslation, MenuItem, MenuItemTranslation, MenuItemImage, MenuItemAttribute,
     HeroImage, HeroSettings, Settings, Order, OrderItem, InstagramPost, Translation,
-    ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation
+    ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation,
+    Customer, Cart, CartItem, Favorite, DeliverySettings
 )
 
 
@@ -249,19 +250,58 @@ class OrderSerializer(serializers.ModelSerializer):
     """Сериализатор для заказов."""
     order_items = OrderItemSerializer(many=True, read_only=True)
     selected_dishes = serializers.ListField(
-        child=serializers.IntegerField(),
+        child=serializers.DictField(),
         write_only=True,
-        required=False
+        required=False,
+        help_text='Список блюд: [{"menu_item_id": 1, "quantity": 2}, ...]'
     )
+    email_display = serializers.SerializerMethodField()
+    phone_display = serializers.SerializerMethodField()
+    total = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
         fields = [
-            'id', 'name', 'phone', 'comment', 'status',
-            'ai_response', 'order_items', 'selected_dishes',
-            'created_at', 'updated_at'
+            'id', 'customer', 'name', 'email', 'email_display', 'phone', 'phone_display',
+            'postal_code', 'address', 'delivery_cost', 'delivery_distance',
+            'comment', 'status', 'ai_response', 'order_items', 'selected_dishes',
+            'total', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'status', 'ai_response', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'email': {'write_only': True},
+            'phone': {'write_only': True},
+        }
+    
+    def get_email_display(self, obj):
+        """Получить маскированный email для отображения."""
+        if obj.customer:
+            return obj.customer.get_email_display()
+        # Для старых заказов без customer
+        if obj.email:
+            parts = obj.email.split('@')
+            if len(parts) == 2:
+                username = parts[0]
+                domain = parts[1]
+                if len(username) > 2:
+                    masked = username[0] + '*' * (len(username) - 2) + username[-1]
+                else:
+                    masked = '*' * len(username)
+                return f'{masked}@{domain}'
+        return obj.email
+    
+    def get_phone_display(self, obj):
+        """Получить маскированный телефон для отображения."""
+        if obj.customer:
+            return obj.customer.get_phone_display()
+        # Для старых заказов без customer
+        if obj.phone and len(obj.phone) > 4:
+            return obj.phone[:2] + '*' * (len(obj.phone) - 4) + obj.phone[-2:]
+        return obj.phone
+    
+    def get_total(self, obj):
+        """Получить общую стоимость заказа."""
+        return obj.get_total()
 
 
 class InstagramPostSerializer(serializers.ModelSerializer):
@@ -418,4 +458,88 @@ class FooterSectionSerializer(serializers.ModelSerializer):
                 data['content'] = instance.content
         
         return data
+
+
+# ============================================
+# ЛИЧНЫЙ КАБИНЕТ И КОРЗИНА
+# ============================================
+
+class CustomerSerializer(serializers.ModelSerializer):
+    """Сериализатор для клиента."""
+    email_display = serializers.CharField(source='get_email_display', read_only=True)
+    phone_display = serializers.CharField(source='get_phone_display', read_only=True)
+    
+    class Meta:
+        model = Customer
+        fields = [
+            'id', 'user', 'email', 'email_display', 'phone', 'phone_display',
+            'name', 'postal_code', 'address', 'is_registered', 'email_verified',
+            'created_at', 'updated_at', 'last_login'
+        ]
+        read_only_fields = ['id', 'is_registered', 'email_verified', 'created_at', 'updated_at', 'last_login']
+        extra_kwargs = {
+            'email': {'write_only': True},
+            'phone': {'write_only': True},
+        }
+
+
+class CartItemDetailSerializer(serializers.ModelSerializer):
+    """Сериализатор для элементов корзины."""
+    menu_item = MenuItemSerializer(read_only=True)
+    menu_item_id = serializers.IntegerField(write_only=True)
+    subtotal = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CartItem
+        fields = ['id', 'menu_item', 'menu_item_id', 'quantity', 'subtotal', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_subtotal(self, obj):
+        """Получить стоимость элемента."""
+        return obj.get_subtotal()
+
+
+class CartSerializer(serializers.ModelSerializer):
+    """Сериализатор для корзины."""
+    items = CartItemDetailSerializer(many=True, read_only=True)
+    total = serializers.SerializerMethodField()
+    total_items = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Cart
+        fields = ['id', 'customer', 'session_key', 'items', 'total', 'total_items', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_total(self, obj):
+        """Получить общую стоимость корзины."""
+        return obj.get_total()
+    
+    def get_total_items(self, obj):
+        """Получить общее количество товаров."""
+        return obj.get_total_items()
+
+
+class FavoriteSerializer(serializers.ModelSerializer):
+    """Сериализатор для избранного."""
+    menu_item = MenuItemSerializer(read_only=True)
+    menu_item_id = serializers.IntegerField(write_only=True)
+    
+    class Meta:
+        model = Favorite
+        fields = ['id', 'customer', 'session_key', 'menu_item', 'menu_item_id', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class DeliverySettingsSerializer(serializers.ModelSerializer):
+    """Сериализатор для настроек доставки."""
+    
+    class Meta:
+        model = DeliverySettings
+        fields = [
+            'id', 'delivery_point_latitude', 'delivery_point_longitude',
+            'base_delivery_cost', 'cost_per_km', 'free_delivery_threshold',
+            'max_delivery_distance', 'cart_enabled', 'favorites_enabled',
+            'registration_required', 'updated_at'
+        ]
+        read_only_fields = ['id', 'updated_at']
 
