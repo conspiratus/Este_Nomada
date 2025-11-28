@@ -378,15 +378,39 @@ class OrderViewSet(viewsets.ModelViewSet):
             order.save()
         
         # Здесь будет обработка через OpenAI (в задаче Celery)
-        # Делаем вызов опциональным - если Redis недоступен, заказ все равно создается
-        try:
-            from .tasks import process_order_with_ai
-            process_order_with_ai.delay(order.id)
-        except Exception as e:
-            # Если Celery/Redis недоступен, просто логируем ошибку и продолжаем
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Could not queue Celery task for order {order.id}: {str(e)}")
+        # КРИТИЧНО: Делаем вызов полностью неблокирующим - не ждем подключения к Redis
+        # Запускаем в отдельном потоке с таймаутом, чтобы не блокировать ответ клиенту
+        import threading
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        def queue_ai_task():
+            """Запускаем задачу Celery в отдельном потоке, чтобы не блокировать ответ."""
+            try:
+                from .tasks import process_order_with_ai
+                # Пытаемся подключиться к Celery, но с таймаутом
+                # Если Redis недоступен, это не должно блокировать создание ордера
+                try:
+                    process_order_with_ai.apply_async(
+                        args=[order.id],
+                        ignore_result=True,
+                        expires=300  # Задача истечет через 5 минут, если не выполнится
+                    )
+                    logger.info(f"AI task queued for order {order.id}")
+                except Exception as celery_error:
+                    # Если не удалось подключиться к Redis/Celery - это не критично
+                    logger.warning(f"Could not queue Celery task for order {order.id}: {str(celery_error)}")
+            except ImportError:
+                # Если tasks не импортируется - это нормально, Celery может быть не настроен
+                logger.debug(f"Celery tasks not available for order {order.id}")
+            except Exception as e:
+                # Любая другая ошибка - логируем, но не прерываем создание ордера
+                logger.warning(f"Unexpected error queuing Celery task for order {order.id}: {str(e)}")
+        
+        # Запускаем в отдельном потоке (daemon=True - не блокирует завершение процесса)
+        thread = threading.Thread(target=queue_ai_task, daemon=True)
+        thread.start()
+        # НЕ ждем завершения потока - сразу возвращаем ответ клиенту
         
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
@@ -588,6 +612,24 @@ class CustomerViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Валидация пароля (если указан)
+        if password:
+            if len(password) < 8:
+                return Response(
+                    {'error': 'Пароль должен содержать минимум 8 символов'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            # Дополнительная валидация сложности пароля
+            from django.contrib.auth.password_validation import validate_password
+            from django.core.exceptions import ValidationError
+            try:
+                validate_password(password)
+            except ValidationError as e:
+                return Response(
+                    {'error': '; '.join(e.messages)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
         # Проверяем, существует ли клиент с таким email
         customer = Customer.objects.filter(email=email).first()
         
@@ -611,15 +653,22 @@ class CustomerViewSet(viewsets.ModelViewSet):
             )
         
         # Если указан пароль, создаем пользователя Django
+        # ВАЖНО: Django create_user() автоматически хеширует пароль перед сохранением
+        # Пароль передается по HTTPS, что обеспечивает безопасность передачи
         if password:
             # Проверяем, существует ли пользователь
             user = User.objects.filter(email=email).first()
             if not user:
+                # create_user() автоматически хеширует пароль через PBKDF2
                 user = User.objects.create_user(
                     username=email,
                     email=email,
-                    password=password
+                    password=password  # Django автоматически хеширует это
                 )
+            else:
+                # Если пользователь существует, обновляем пароль (хешируется автоматически)
+                user.set_password(password)
+                user.save()
             customer.user = user
             customer.is_registered = True
             

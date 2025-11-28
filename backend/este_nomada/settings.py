@@ -225,12 +225,19 @@ else:
     CSRF_COOKIE_SECURE = False
 
 # Celery Configuration
+# ВАЖНО: Redis/Celery НЕ обязательны для базовой функциональности
+# Они используются только для опциональных задач (OpenAI, Telegram, Instagram синхронизация)
+# Если Redis недоступен, приложение продолжит работать без этих функций
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+# Таймаут подключения к брокеру (в секундах) - не ждем долго
+CELERY_BROKER_CONNECTION_TIMEOUT = 1
+CELERY_BROKER_CONNECTION_RETRY = False
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = False
 
 # Telegram Bot Settings
 TELEGRAM_BOT_TOKEN = env('TELEGRAM_BOT_TOKEN', default='')
