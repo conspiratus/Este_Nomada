@@ -357,8 +357,15 @@ class OrderViewSet(viewsets.ModelViewSet):
             order.save()
         
         # Здесь будет обработка через OpenAI (в задаче Celery)
-        from .tasks import process_order_with_ai
-        process_order_with_ai.delay(order.id)
+        # Делаем вызов опциональным - если Redis недоступен, заказ все равно создается
+        try:
+            from .tasks import process_order_with_ai
+            process_order_with_ai.delay(order.id)
+        except Exception as e:
+            # Если Celery/Redis недоступен, просто логируем ошибку и продолжаем
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Could not queue Celery task for order {order.id}: {str(e)}")
         
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
