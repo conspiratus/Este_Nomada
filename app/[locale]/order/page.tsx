@@ -63,7 +63,7 @@ export default function OrderPage() {
 
   const loadCart = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/cart/`, {
+      const response = await fetch(`${API_BASE_URL}/cart/`, {
         credentials: 'include',
       });
       if (response.ok) {
@@ -89,14 +89,14 @@ export default function OrderPage() {
   const addToCart = async (menuItemId: number, quantity: number = 1) => {
     try {
       // Сначала получаем или создаем корзину
-      let cartResponse = await fetch(`${API_BASE_URL}/api/cart/`, {
+      let cartResponse = await fetch(`${API_BASE_URL}/cart/`, {
         credentials: 'include',
       });
       let cartData = await cartResponse.json();
       const cartId = cartData.id;
 
       // Добавляем элемент
-      const response = await fetch(`${API_BASE_URL}/api/cart/${cartId}/add_item/`, {
+      const response = await fetch(`${API_BASE_URL}/cart/${cartId}/add_item/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -116,13 +116,13 @@ export default function OrderPage() {
 
   const updateCartItem = async (cartItemId: number, quantity: number) => {
     try {
-      let cartResponse = await fetch(`${API_BASE_URL}/api/cart/`, {
+      let cartResponse = await fetch(`${API_BASE_URL}/cart/`, {
         credentials: 'include',
       });
       let cartData = await cartResponse.json();
       const cartId = cartData.id;
 
-      const response = await fetch(`${API_BASE_URL}/api/cart/${cartId}/update_item/`, {
+      const response = await fetch(`${API_BASE_URL}/cart/${cartId}/update_item/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -142,13 +142,13 @@ export default function OrderPage() {
 
   const removeFromCart = async (cartItemId: number) => {
     try {
-      let cartResponse = await fetch(`${API_BASE_URL}/api/cart/`, {
+      let cartResponse = await fetch(`${API_BASE_URL}/cart/`, {
         credentials: 'include',
       });
       let cartData = await cartResponse.json();
       const cartId = cartData.id;
 
-      const response = await fetch(`${API_BASE_URL}/api/cart/${cartId}/remove_item/?cart_item_id=${cartItemId}`, {
+      const response = await fetch(`${API_BASE_URL}/cart/${cartId}/remove_item/?cart_item_id=${cartItemId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -169,7 +169,7 @@ export default function OrderPage() {
     setCalculatingDelivery(true);
     try {
       const orderTotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
-      const response = await fetch(`${API_BASE_URL}/api/delivery/calculate/`, {
+      const response = await fetch(`${API_BASE_URL}/delivery/calculate/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -234,7 +234,7 @@ export default function OrderPage() {
         selected_dishes: selectedDishes,
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/orders/`, {
+      const response = await fetch(`${API_BASE_URL}/orders/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
