@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations, useLocale } from 'next-intl';
 import { motion, AnimatePresence } from "framer-motion";
 import { X, User, Mail, Phone, Lock } from 'lucide-react';
@@ -29,6 +29,18 @@ export default function RegistrationModal({ isOpen, onClose, onSuccess, initialD
     password: '',
     passwordConfirm: '',
   });
+  
+  // Обновляем форму при изменении initialData
+  useEffect(() => {
+    if (initialData) {
+      setFormData(prev => ({
+        ...prev,
+        name: initialData.name || prev.name,
+        email: initialData.email || prev.email,
+        phone: initialData.phone || prev.phone,
+      }));
+    }
+  }, [initialData]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);

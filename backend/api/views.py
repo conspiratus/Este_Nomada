@@ -335,21 +335,42 @@ class OrderViewSet(viewsets.ModelViewSet):
                 pass
         
         # Рассчитываем стоимость доставки только если не самовывоз и указан postal_code
+        # КРИТИЧНО: Не делаем расчет доставки синхронно - это может занять 30+ секунд из-за geocoding API
+        # Используем значение, которое уже было рассчитано на фронтенде (delivery_cost из запроса)
+        # Если не было рассчитано - используем базовую стоимость или 0
         if not is_pickup:
             postal_code = data.get('postal_code')
-            if postal_code:
+            delivery_cost_from_request = data.get('delivery_cost', 0)
+            
+            # Используем стоимость доставки, которая уже была рассчитана на фронтенде
+            if delivery_cost_from_request:
+                try:
+                    order.delivery_cost = float(delivery_cost_from_request)
+                    # Если есть расстояние из запроса - сохраняем его
+                    if data.get('delivery_distance'):
+                        order.delivery_distance = float(data.get('delivery_distance'))
+                    # Если есть адрес из запроса - сохраняем его
+                    if data.get('address'):
+                        order.address = data.get('address')
+                    order.save()
+                except (ValueError, TypeError):
+                    # Если не удалось преобразовать - используем базовую стоимость
+                    try:
+                        delivery_settings = DeliverySettings.get_settings()
+                        order.delivery_cost = float(delivery_settings.base_delivery_cost) if delivery_settings.base_delivery_cost else 0
+                        order.save()
+                    except:
+                        order.delivery_cost = 0
+                        order.save()
+            else:
+                # Если стоимость не была рассчитана - используем базовую
                 try:
                     delivery_settings = DeliverySettings.get_settings()
-                    delivery_result = delivery_settings.calculate_delivery_cost(postal_code, order_total)
-                    if delivery_result.get('success'):
-                        order.delivery_cost = delivery_result.get('cost', 0)
-                        order.delivery_distance = delivery_result.get('distance')
-                        if delivery_result.get('address'):
-                            order.address = delivery_result.get('address')
-                        order.save()
-                except Exception as e:
-                    # Если ошибка расчета доставки, продолжаем без нее
-                    pass
+                    order.delivery_cost = float(delivery_settings.base_delivery_cost) if delivery_settings.base_delivery_cost else 0
+                    order.save()
+                except:
+                    order.delivery_cost = 0
+                    order.save()
         else:
             # При самовывозе доставка бесплатна
             order.delivery_cost = 0

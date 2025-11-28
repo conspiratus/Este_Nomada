@@ -47,7 +47,11 @@ export default function OrderPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
-  const [lastOrderEmail, setLastOrderEmail] = useState<string | null>(null);
+  const [lastOrderData, setLastOrderData] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+  } | null>(null);
 
   const API_BASE_URL = getApiUrl();
 
@@ -259,9 +263,10 @@ export default function OrderPage() {
         phone: formData.phone,
         is_pickup: formData.is_pickup,
         postal_code: formData.is_pickup ? '' : formData.postal_code,
-        address: formData.is_pickup ? '' : formData.address,
+        address: formData.is_pickup ? '' : (deliveryInfo?.address || formData.address),
         comment: formData.comment,
         delivery_cost: formData.is_pickup ? 0 : (deliveryInfo?.cost || 0),
+        delivery_distance: formData.is_pickup ? null : (deliveryInfo?.distance || null),
         selected_dishes: selectedDishes,
       };
 
@@ -275,7 +280,13 @@ export default function OrderPage() {
       if (response.ok) {
         const orderData = await response.json();
         setShowSuccess(true);
-        setLastOrderEmail(formData.email);
+        
+        // Сохраняем данные заказа для формы регистрации
+        setLastOrderData({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+        });
         
         // Проверяем, зарегистрирован ли пользователь
         // Если нет - предлагаем регистрацию через 2 секунды
@@ -786,7 +797,7 @@ export default function OrderPage() {
         onSuccess={() => {
           setShowRegistrationModal(false);
         }}
-        initialData={{
+        initialData={lastOrderData || undefined}
           name: formData.name || undefined,
           email: lastOrderEmail || formData.email || undefined,
           phone: formData.phone || undefined,
