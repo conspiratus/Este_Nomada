@@ -120,10 +120,23 @@ export default function AccountPage() {
             const ordersData = await ordersResponse.json();
             setOrders(ordersData);
           }
+        } else {
+          // Если данных нет, пользователь не авторизован
+          setIsAuthenticated(false);
+          setCustomer(null);
+          setOrders([]);
         }
+      } else {
+        // Если получили ошибку, пользователь не авторизован
+        setIsAuthenticated(false);
+        setCustomer(null);
+        setOrders([]);
       }
     } catch (err) {
       console.error("Error loading account data:", err);
+      setIsAuthenticated(false);
+      setCustomer(null);
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -191,8 +204,21 @@ export default function AccountPage() {
           saveTokens(data.access, data.refresh);
         }
         
-        // Перезагружаем данные аккаунта
-        await loadAccountData();
+        // Если в ответе есть данные клиента, обновляем состояние сразу
+        if (data.customer) {
+          setCustomer(data.customer);
+          setIsAuthenticated(true);
+          
+          // Загружаем заказы
+          const ordersResponse = await fetchWithAuth(`${API_BASE_URL}/orders/my_orders/?locale=${locale}`);
+          if (ordersResponse.ok) {
+            const ordersData = await ordersResponse.json();
+            setOrders(ordersData);
+          }
+        } else {
+          // Если данных клиента нет в ответе, перезагружаем все данные
+          await loadAccountData();
+        }
       } else {
         const errorData = await response.json();
         setLoginError(errorData.error || t('loginError') || 'Ошибка входа');
@@ -240,11 +266,32 @@ export default function AccountPage() {
       });
 
       if (response.ok) {
-        setRegistrationSuccess(true);
-        setTimeout(() => {
-          // Перезагружаем данные аккаунта
-          loadAccountData();
-        }, 1500);
+        const data = await response.json();
+        
+        // Сохраняем JWT токены, если они есть
+        if (data.access && data.refresh) {
+          saveTokens(data.access, data.refresh);
+        }
+        
+        // Если в ответе есть данные клиента, обновляем состояние сразу
+        if (data.customer) {
+          setCustomer(data.customer);
+          setIsAuthenticated(true);
+          setRegistrationSuccess(true);
+          
+          // Загружаем заказы
+          const ordersResponse = await fetchWithAuth(`${API_BASE_URL}/orders/my_orders/?locale=${locale}`);
+          if (ordersResponse.ok) {
+            const ordersData = await ordersResponse.json();
+            setOrders(ordersData);
+          }
+        } else {
+          setRegistrationSuccess(true);
+          setTimeout(() => {
+            // Перезагружаем данные аккаунта
+            loadAccountData();
+          }, 1500);
+        }
       } else {
         const errorData = await response.json();
         setRegistrationError(errorData.error || tReg('error') || t('registrationError') || 'Ошибка регистрации');
