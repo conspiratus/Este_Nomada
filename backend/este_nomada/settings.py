@@ -33,6 +33,10 @@ CSRF_TRUSTED_ORIGINS = env.list(
     default=[
         'https://estenomada.es',
         'https://www.estenomada.es',
+        'https://nomadadeleste.es',
+        'https://www.nomadadeleste.es',
+        'https://nomadadeleste.com',
+        'https://www.nomadadeleste.com',
         'http://localhost:3000',
     ]
 )
