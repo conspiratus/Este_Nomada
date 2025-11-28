@@ -89,7 +89,10 @@
     "viewDetails": "Подробнее",
     "pickup": "Самовывоз",
     "nameRequired": "Имя обязательно для заполнения",
-    "postalCodeRequired": "Почтовый индекс обязателен для доставки"
+    "postalCodeRequired": "Почтовый индекс обязателен для доставки",
+    "orderData": "Данные для заказа",
+    "email": "Email",
+    "emailPlaceholder": "your@email.com"
   },
   "account": {
     "title": "Личный кабинет",

@@ -89,7 +89,10 @@
     "viewDetails": "Ver detalles",
     "pickup": "Recoger",
     "nameRequired": "El nombre es obligatorio",
-    "postalCodeRequired": "El código postal es obligatorio para la entrega"
+    "postalCodeRequired": "El código postal es obligatorio para la entrega",
+    "orderData": "Datos del Pedido",
+    "email": "Email",
+    "emailPlaceholder": "your@email.com"
   },
   "account": {
     "title": "Cuenta Personal",

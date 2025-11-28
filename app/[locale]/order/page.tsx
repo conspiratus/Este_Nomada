@@ -534,7 +534,7 @@ export default function OrderPage() {
               {/* Форма заказа */}
               <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-6">
                 <h2 className="text-2xl font-bold text-charcoal-900 mb-4">
-                  Данные для заказа
+                  {t('orderData')}
                 </h2>
 
                 <div className="space-y-4">
@@ -556,7 +556,7 @@ export default function OrderPage() {
                   {/* Email */}
                   <div>
                     <label className="block text-sm font-medium text-charcoal-700 mb-2">
-                      Email *
+                      {t('email')} *
                     </label>
                     <input
                       type="email"
@@ -564,7 +564,7 @@ export default function OrderPage() {
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="w-full px-4 py-3 rounded-lg border border-warm-300 focus:ring-2 focus:ring-saffron-500 focus:border-transparent outline-none"
-                      placeholder="your@email.com"
+                      placeholder={t('emailPlaceholder')}
                     />
                   </div>
 

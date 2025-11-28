@@ -89,7 +89,10 @@
     "viewDetails": "View details",
     "pickup": "Pickup",
     "nameRequired": "Name is required",
-    "postalCodeRequired": "Postal code is required for delivery"
+    "postalCodeRequired": "Postal code is required for delivery",
+    "orderData": "Order Information",
+    "email": "Email",
+    "emailPlaceholder": "your@email.com"
   },
   "account": {
     "title": "Personal Account",
