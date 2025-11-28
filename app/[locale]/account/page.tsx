@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { getApiUrl } from '@/lib/get-api-url';
 import { Package, Clock, CheckCircle, XCircle, User, Mail, Phone, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { saveTokens, fetchWithAuth } from '@/lib/auth';
+import { saveTokens, fetchWithAuth, hasToken, getAccessToken } from '@/lib/auth';
 
 interface OrderItem {
   id: number;
@@ -96,13 +96,30 @@ export default function AccountPage() {
   }, []);
 
   useEffect(() => {
-    loadAccountData();
+    // Проверяем наличие токена при загрузке страницы
+    if (hasToken()) {
+      loadAccountData();
+    } else {
+      // Если токена нет, сразу показываем форму входа
+      setLoading(false);
+      setIsAuthenticated(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadAccountData = async () => {
     try {
       setLoading(true);
+      
+      // Проверяем наличие токена
+      const token = getAccessToken();
+      if (!token) {
+        setIsAuthenticated(false);
+        setCustomer(null);
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
       
       // Проверяем, авторизован ли пользователь (используем JWT)
       const authResponse = await fetchWithAuth(`${API_BASE_URL}/customers/`);
@@ -126,8 +143,13 @@ export default function AccountPage() {
           setCustomer(null);
           setOrders([]);
         }
+      } else if (authResponse.status === 401) {
+        // Если получили 401, токен невалидный или истек - очищаем
+        setIsAuthenticated(false);
+        setCustomer(null);
+        setOrders([]);
       } else {
-        // Если получили ошибку, пользователь не авторизован
+        // Другая ошибка
         setIsAuthenticated(false);
         setCustomer(null);
         setOrders([]);

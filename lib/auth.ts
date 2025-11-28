@@ -115,6 +115,10 @@ export async function fetchWithAuth(
         headers,
         credentials: 'include',
       });
+    } else {
+      // Если не удалось обновить токен, возвращаем 401
+      // Токены уже очищены в refreshAccessToken
+      return response;
     }
   }
 
