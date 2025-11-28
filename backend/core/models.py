@@ -100,7 +100,7 @@ class Story(models.Model):
     class Meta:
         db_table = 'stories'
         verbose_name = 'История'
-        verbose_name_plural = 'Истории'
+        verbose_name_plural = '📄 Контент: Истории'
         ordering = ['-date', '-created_at']
         indexes = [
             models.Index(fields=['slug']),
@@ -173,7 +173,7 @@ class MenuItem(models.Model):
     class Meta:
         db_table = 'menu_items'
         verbose_name = 'Блюдо'
-        verbose_name_plural = 'Блюда'
+        verbose_name_plural = '🍽️ Контент: Блюда меню'
         ordering = ['order', 'name']
         indexes = [
             models.Index(fields=['category']),
@@ -278,7 +278,7 @@ class HeroImage(models.Model):
     class Meta:
         db_table = 'hero_images'
         verbose_name = 'Hero изображение'
-        verbose_name_plural = 'Hero изображения'
+        verbose_name_plural = '🖼️ Главная: Hero изображения'
         ordering = ['order', 'created_at']
         indexes = [
             models.Index(fields=['active', 'order']),
@@ -317,7 +317,7 @@ class HeroSettings(models.Model):
     class Meta:
         db_table = 'hero_settings'
         verbose_name = 'Настройки Hero'
-        verbose_name_plural = 'Настройки Hero'
+        verbose_name_plural = '⚙️ Главная: Настройки Hero'
         # Группируем в админке
         app_label = 'core'
 
@@ -349,7 +349,7 @@ class Settings(models.Model):
     class Meta:
         db_table = 'settings'
         verbose_name = 'Настройки'
-        verbose_name_plural = 'Настройки'
+        verbose_name_plural = '⚙️ Настройки: Основные настройки'
 
     def __str__(self):
         return self.site_name
@@ -416,7 +416,7 @@ class Order(models.Model):
     class Meta:
         db_table = 'orders'
         verbose_name = 'Заказ'
-        verbose_name_plural = 'Заказы'
+        verbose_name_plural = '🛒 Заказы'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['customer']),
@@ -470,7 +470,7 @@ class InstagramPost(models.Model):
     class Meta:
         db_table = 'instagram_posts'
         verbose_name = 'Instagram пост'
-        verbose_name_plural = 'Instagram посты'
+        verbose_name_plural = '📱 Интеграции: Instagram посты'
         ordering = ['-timestamp']
 
     def __str__(self):
@@ -489,7 +489,7 @@ class Translation(models.Model):
     class Meta:
         db_table = 'translations'
         verbose_name = 'Перевод'
-        verbose_name_plural = 'Переводы'
+        verbose_name_plural = '🌐 Настройки: Переводы интерфейса'
         unique_together = [['locale', 'namespace', 'key']]
         indexes = [
             models.Index(fields=['locale', 'namespace']),
@@ -534,7 +534,7 @@ class ContentSection(models.Model):
     class Meta:
         db_table = 'content_sections'
         verbose_name = 'Раздел контента'
-        verbose_name_plural = 'Разделы контента'
+        verbose_name_plural = '📋 Контент: Разделы контента'
         ordering = ['section_type', 'order']
         indexes = [
             models.Index(fields=['section_type', 'published']),
@@ -613,7 +613,7 @@ class FooterSection(models.Model):
     class Meta:
         db_table = 'footer_sections'
         verbose_name = 'Секция футера'
-        verbose_name_plural = 'Секции футера'
+        verbose_name_plural = '🔻 Контент: Секции футера'
         ordering = ['position', 'order']
         indexes = [
             models.Index(fields=['position', 'order']),
@@ -694,7 +694,7 @@ class DishTTK(models.Model):
     class Meta:
         db_table = 'dish_ttk'
         verbose_name = 'ТТК блюда'
-        verbose_name_plural = 'ТТК блюд'
+        verbose_name_plural = '📋 ТТК: ТТК блюд'
         ordering = ['-updated_at', '-created_at']
         indexes = [
             models.Index(fields=['menu_item']),
@@ -766,7 +766,7 @@ class TTKVersionHistory(models.Model):
     class Meta:
         db_table = 'ttk_version_history'
         verbose_name = 'История версий ТТК'
-        verbose_name_plural = 'История версий ТТК'
+        verbose_name_plural = '📋 ТТК: История версий ТТК'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['ttk', '-created_at']),
@@ -814,7 +814,7 @@ class Customer(models.Model):
     class Meta:
         db_table = 'customers'
         verbose_name = 'Клиент'
-        verbose_name_plural = 'Клиенты'
+        verbose_name_plural = '👤 ЛК: Клиенты'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['email']),
@@ -866,7 +866,7 @@ class Cart(models.Model):
     class Meta:
         db_table = 'carts'
         verbose_name = 'Корзина'
-        verbose_name_plural = 'Корзины'
+        verbose_name_plural = '🛒 ЛК: Корзины'
         ordering = ['-updated_at']
         indexes = [
             models.Index(fields=['customer']),
@@ -948,7 +948,7 @@ class Favorite(models.Model):
     class Meta:
         db_table = 'favorites'
         verbose_name = 'Избранное'
-        verbose_name_plural = 'Избранное'
+        verbose_name_plural = '⭐ ЛК: Избранное'
         unique_together = [['customer', 'menu_item'], ['session_key', 'menu_item']]
         indexes = [
             models.Index(fields=['customer']),
@@ -1023,7 +1023,7 @@ class DeliverySettings(models.Model):
     class Meta:
         db_table = 'delivery_settings'
         verbose_name = 'Настройки доставки и ЛК'
-        verbose_name_plural = 'Настройки доставки и ЛК'
+        verbose_name_plural = '⚙️ ЛК: Настройки доставки'
     
     def __str__(self):
         return 'Настройки доставки и ЛК'
