@@ -10,6 +10,7 @@ from django.contrib.admin import AdminSite
 from django.apps import apps
 from .models import (
     Story, StoryTranslation, MenuItem, MenuItemTranslation, MenuItemImage, MenuItemAttribute,
+    MenuItemCategory, MenuItemCategoryTranslation,
     HeroImage, HeroSettings, Settings, Order, OrderItem, InstagramPost, Translation,
     ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation,
     DishTTK, TTKVersionHistory, Customer, Cart, CartItem, Favorite, DeliverySettings
@@ -111,7 +112,7 @@ class CustomAdminSite(AdminSite):
         model_name = model.__name__
         
         # Контент сайта
-        if model_name in ['Story', 'MenuItem', 'ContentSection', 'FooterSection']:
+        if model_name in ['Story', 'MenuItem', 'MenuItemCategory', 'ContentSection', 'FooterSection']:
             return 'Контент сайта'
         
         # Главная страница
@@ -144,7 +145,7 @@ class CustomAdminSite(AdminSite):
             if 'Translation' in model_name:
                 if 'Story' in model_name:
                     return 'Контент сайта'
-                elif 'MenuItem' in model_name:
+                elif 'MenuItem' in model_name or 'Category' in model_name:
                     return 'Контент сайта'
                 elif 'ContentSection' in model_name:
                     return 'Контент сайта'
@@ -282,7 +283,7 @@ class MenuItemTranslationInline(admin.TabularInline):
     model = MenuItemTranslation
     form = MenuItemTranslationForm
     extra = 1
-    fields = ['locale', 'name', 'description', 'category']
+    fields = ['locale', 'name', 'description']
 
 
 class MenuItemImageInline(admin.TabularInline):
@@ -310,6 +311,47 @@ class MenuItemAttributeInline(admin.TabularInline):
     fields = ['locale', 'name', 'value', 'order']
     verbose_name = 'Атрибут'
     verbose_name_plural = 'Атрибуты'
+
+
+# ============================================
+# КАТЕГОРИИ БЛЮД
+# ============================================
+
+class MenuItemCategoryTranslationInline(admin.TabularInline):
+    """Inline для переводов категорий блюд."""
+    model = MenuItemCategoryTranslation
+    extra = 1
+    fields = ['locale', 'name', 'description']
+    verbose_name = 'Перевод'
+    verbose_name_plural = 'Переводы'
+
+
+class MenuItemCategoryAdmin(admin.ModelAdmin):
+    """Админка для категорий блюд."""
+    list_display = ['id', 'get_name', 'order_id', 'active', 'created_at']
+    list_filter = ['active']
+    search_fields = ['translations__name']
+    list_editable = ['order_id', 'active']
+    readonly_fields = ['created_at', 'updated_at']
+    inlines = [MenuItemCategoryTranslationInline]
+    fieldsets = (
+        ('Настройки', {
+            'fields': ('order_id', 'active'),
+            'description': 'Порядок отображения определяет последовательность категорий на странице заказа.'
+        }),
+        ('Даты', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_name(self, obj):
+        """Получить название категории из переводов."""
+        first_translation = obj.translations.first()
+        if first_translation:
+            return first_translation.name
+        return f'Категория #{obj.id}'
+    get_name.short_description = 'Название'
 
 
 class MenuItemAdminForm(forms.ModelForm):
@@ -983,6 +1025,7 @@ class DeliverySettingsAdmin(admin.ModelAdmin):
 
 # Регистрируем все модели в кастомном админ-сайте вместо стандартного
 custom_admin_site.register(Story, StoryAdmin)
+custom_admin_site.register(MenuItemCategory, MenuItemCategoryAdmin)
 custom_admin_site.register(MenuItem, MenuItemAdmin)
 custom_admin_site.register(HeroImage, HeroImageAdmin)
 custom_admin_site.register(HeroSettings, HeroSettingsAdmin)

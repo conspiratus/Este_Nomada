@@ -4,7 +4,7 @@ API URLs.
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    StoryViewSet, MenuItemViewSet, SettingsViewSet, OrderViewSet,
+    StoryViewSet, MenuItemViewSet, MenuItemCategoryViewSet, SettingsViewSet, OrderViewSet,
     InstagramPostViewSet, TranslationViewSet,
     HeroImageViewSet, HeroSettingsViewSet, ContentSectionViewSet, AboutSectionViewSet,
     FooterSectionViewSet, CustomerViewSet, CartViewSet, FavoriteViewSet, DeliverySettingsViewSet
@@ -12,6 +12,7 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r'stories', StoryViewSet, basename='story')
+router.register(r'menu/categories', MenuItemCategoryViewSet, basename='menuitemcategory')
 router.register(r'menu', MenuItemViewSet, basename='menuitem')
 router.register(r'settings', SettingsViewSet, basename='settings')
 router.register(r'orders', OrderViewSet, basename='order')

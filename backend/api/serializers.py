@@ -5,6 +5,7 @@ from rest_framework import serializers
 import markdown
 from core.models import (
     Story, StoryTranslation, MenuItem, MenuItemTranslation, MenuItemImage, MenuItemAttribute,
+    MenuItemCategory, MenuItemCategoryTranslation,
     HeroImage, HeroSettings, Settings, Order, OrderItem, InstagramPost, Translation,
     ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation,
     Customer, Cart, CartItem, Favorite, DeliverySettings
@@ -94,8 +95,51 @@ class MenuItemTranslationSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = MenuItemTranslation
-        fields = ['locale', 'name', 'description', 'category']
+        fields = ['locale', 'name', 'description']
         read_only_fields = []
+
+
+class MenuItemCategoryTranslationSerializer(serializers.ModelSerializer):
+    """Сериализатор для переводов категорий блюд."""
+    
+    class Meta:
+        model = MenuItemCategoryTranslation
+        fields = ['locale', 'name', 'description']
+        read_only_fields = []
+
+
+class MenuItemCategorySerializer(serializers.ModelSerializer):
+    """Сериализатор для категорий блюд."""
+    translations = MenuItemCategoryTranslationSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = MenuItemCategory
+        fields = ['id', 'order_id', 'active', 'translations', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def to_representation(self, instance):
+        """Возвращаем данные с учётом локали из запроса."""
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        
+        if request:
+            locale = request.query_params.get('locale', 'ru')
+            translation = instance.get_translation(locale)
+            
+            if translation:
+                data['name'] = translation.name
+                data['description'] = translation.description
+            else:
+                # Fallback на первый доступный перевод
+                first_translation = instance.translations.first()
+                if first_translation:
+                    data['name'] = first_translation.name
+                    data['description'] = first_translation.description
+                else:
+                    data['name'] = f'Категория #{instance.id}'
+                    data['description'] = None
+        
+        return data
 
 
 class MenuItemImageSerializer(serializers.ModelSerializer):
@@ -132,6 +176,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
     images = MenuItemImageSerializer(many=True, read_only=True)
     attributes = MenuItemAttributeSerializer(many=True, read_only=True)
     related_stories = serializers.SerializerMethodField()
+    category = MenuItemCategorySerializer(read_only=True)
     
     class Meta:
         model = MenuItem
@@ -189,8 +234,8 @@ class MenuItemSerializer(serializers.ModelSerializer):
                 # Описание: если в переводе есть описание, используем его, иначе базовое
                 # Описание возвращаем как есть (HTML не экранируется, так как это TextField)
                 data['description'] = translation.description if translation.description else data.get('description')
-                data['category'] = translation.category
             # Если перевода нет, используются базовые поля из data (уже установлены через super())
+            # category уже сериализуется через MenuItemCategorySerializer
             
             # Фильтруем атрибуты по текущей локали
             if 'attributes' in data and data['attributes']:

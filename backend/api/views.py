@@ -7,12 +7,12 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
 from core.models import (
-    Story, MenuItem, Settings, Order, OrderItem, InstagramPost, Translation,
+    Story, MenuItem, MenuItemCategory, Settings, Order, OrderItem, InstagramPost, Translation,
     HeroImage, HeroSettings, ContentSection, FooterSection, DeliverySettings,
     Customer, Cart, CartItem, Favorite
 )
 from .serializers import (
-    StorySerializer, MenuItemSerializer, SettingsSerializer,
+    StorySerializer, MenuItemSerializer, MenuItemCategorySerializer, SettingsSerializer,
     OrderSerializer, InstagramPostSerializer, TranslationSerializer,
     HeroImageSerializer, HeroSettingsSerializer, ContentSectionSerializer,
     FooterSectionSerializer
@@ -76,6 +76,25 @@ class StoryViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+class MenuItemCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet для категорий блюд."""
+    queryset = MenuItemCategory.objects.filter(active=True)
+    serializer_class = MenuItemCategorySerializer
+    permission_classes = [AllowAny]
+    
+    def get_queryset(self):
+        """Фильтрация для админки."""
+        if self.request.user.is_authenticated:
+            return MenuItemCategory.objects.all().order_by('order_id')
+        return MenuItemCategory.objects.filter(active=True).order_by('order_id')
+    
+    def get_serializer_context(self):
+        """Добавляем request в контекст для сериализатора."""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
+
 class MenuItemViewSet(viewsets.ModelViewSet):
     """ViewSet для блюд меню."""
     queryset = MenuItem.objects.filter(active=True)
@@ -93,6 +112,54 @@ class MenuItemViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+    
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+    def by_category(self, request):
+        """Возвращает блюда, сгруппированные по категориям."""
+        locale = request.query_params.get('locale', 'ru')
+        queryset = self.get_queryset()
+        
+        # Получаем все активные категории, отсортированные по order_id
+        categories = MenuItemCategory.objects.filter(active=True).order_by('order_id')
+        
+        result = []
+        for category in categories:
+            # Получаем блюда этой категории
+            category_items = queryset.filter(category=category)
+            
+            if category_items.exists():
+                # Получаем перевод категории
+                category_translation = category.get_translation(locale)
+                
+                category_data = {
+                    'id': category.id,
+                    'order_id': category.order_id,
+                    'name': category_translation.name if category_translation else f'Категория #{category.id}',
+                    'description': category_translation.description if category_translation else None,
+                    'items': MenuItemSerializer(
+                        category_items,
+                        many=True,
+                        context={'request': request}
+                    ).data
+                }
+                result.append(category_data)
+        
+        # Блюда без категории
+        items_without_category = queryset.filter(category__isnull=True)
+        if items_without_category.exists():
+            result.append({
+                'id': None,
+                'order_id': 9999,  # Без категории в конце
+                'name': 'Другие',
+                'description': None,
+                'items': MenuItemSerializer(
+                    items_without_category,
+                    many=True,
+                    context={'request': request}
+                ).data
+            })
+        
+        return Response(result)
 
 
 class SettingsViewSet(viewsets.ModelViewSet):

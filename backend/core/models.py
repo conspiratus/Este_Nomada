@@ -155,12 +155,66 @@ class StoryTranslation(models.Model):
         return f'{self.story.title} ({self.locale})'
 
 
+class MenuItemCategory(models.Model):
+    """Модель для категорий блюд."""
+    order_id = models.IntegerField(default=0, validators=[MinValueValidator(0)], verbose_name='Порядок отображения')
+    active = models.BooleanField(default=True, verbose_name='Активно')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'menu_item_categories'
+        verbose_name = 'Категория блюд'
+        verbose_name_plural = 'Категории блюд'
+        ordering = ['order_id']
+        indexes = [
+            models.Index(fields=['order_id']),
+            models.Index(fields=['active']),
+        ]
+
+    def __str__(self):
+        # Пытаемся получить название из переводов
+        first_translation = self.translations.first()
+        if first_translation:
+            return first_translation.name
+        return f'Категория #{self.id}'
+    
+    def get_translation(self, locale: str):
+        """Получить перевод для указанной локали."""
+        try:
+            return self.translations.get(locale=locale)
+        except MenuItemCategoryTranslation.DoesNotExist:
+            return None
+
+
+class MenuItemCategoryTranslation(models.Model):
+    """Переводы для категорий блюд."""
+    category = models.ForeignKey(MenuItemCategory, related_name='translations', on_delete=models.CASCADE, verbose_name='Категория')
+    locale = models.CharField(max_length=10, verbose_name='Локаль')
+    name = models.CharField(max_length=255, verbose_name='Название')
+    description = models.TextField(blank=True, null=True, verbose_name='Описание')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'menu_item_category_translations'
+        verbose_name = 'Перевод категории блюд'
+        verbose_name_plural = 'Переводы категорий блюд'
+        unique_together = [['category', 'locale']]
+        indexes = [
+            models.Index(fields=['category', 'locale']),
+        ]
+
+    def __str__(self):
+        return f'{self.name} ({self.locale})'
+
+
 class MenuItem(models.Model):
     """Модель для блюд меню."""
     # Базовые поля (используются как fallback, если нет перевода)
     name = models.CharField(max_length=255, verbose_name='Название (базовое)')
     description = models.TextField(blank=True, null=True, verbose_name='Описание (базовое)', help_text='Поддерживает HTML')
-    category = models.CharField(max_length=100, verbose_name='Категория (базовая)')
+    category = models.ForeignKey('MenuItemCategory', on_delete=models.SET_NULL, null=True, blank=True, related_name='menu_items', verbose_name='Категория')
     price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, verbose_name='Цена')
     image = models.URLField(max_length=500, blank=True, null=True, verbose_name='Изображение')
     order = models.IntegerField(default=0, validators=[MinValueValidator(0)], verbose_name='Порядок')
@@ -176,7 +230,7 @@ class MenuItem(models.Model):
         verbose_name_plural = 'Блюда'
         ordering = ['order', 'name']
         indexes = [
-            models.Index(fields=['category']),
+            models.Index(fields=['category', 'active']),
             models.Index(fields=['active']),
             models.Index(fields=['order']),
         ]
@@ -198,7 +252,6 @@ class MenuItemTranslation(models.Model):
     locale = models.CharField(max_length=10, verbose_name='Локаль')
     name = models.CharField(max_length=255, verbose_name='Название')
     description = models.TextField(blank=True, null=True, verbose_name='Описание', help_text='Поддерживает HTML')
-    category = models.CharField(max_length=100, verbose_name='Категория')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

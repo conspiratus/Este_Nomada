@@ -26,6 +26,13 @@ export interface RelatedStory {
   date: string;
 }
 
+export interface MenuItemCategory {
+  id: number | null;
+  order_id: number;
+  name: string;
+  description: string | null;
+}
+
 export interface MenuItem {
   id: number;
   price: number | null;
@@ -37,7 +44,15 @@ export interface MenuItem {
   active: boolean;
   name: string;
   description: string | null;
-  category: string;
+  category: MenuItemCategory | null;
+}
+
+export interface MenuCategoryGroup {
+  id: number | null;
+  order_id: number;
+  name: string;
+  description: string | null;
+  items: MenuItem[];
 }
 
 /**

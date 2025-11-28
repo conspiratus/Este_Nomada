@@ -5,7 +5,9 @@ import { useTranslations, useLocale } from 'next-intl';
 import { motion } from "framer-motion";
 import { getMenuItems, type MenuItem } from '@/lib/menu-api';
 import { getApiUrl } from '@/lib/get-api-url';
-import { Plus, Minus, Heart, ShoppingCart, MapPin } from 'lucide-react';
+import { Plus, Minus, Heart, ShoppingCart, MapPin, X } from 'lucide-react';
+import Image from 'next/image';
+import type { MenuCategoryGroup } from '@/lib/menu-api';
 
 interface CartItem {
   id: number;
@@ -27,8 +29,9 @@ export default function OrderPage() {
   const t = useTranslations('order');
   const locale = useLocale();
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [menuCategories, setMenuCategories] = useState<MenuCategoryGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -52,10 +55,19 @@ export default function OrderPage() {
   const loadMenuItems = async () => {
     try {
       setLoading(true);
-      const items = await getMenuItems(locale as any);
-      setMenuItems(items);
+      const response = await fetch(`${API_BASE_URL}/menu/by_category/?locale=${locale}`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMenuCategories(data);
+      } else {
+        console.error("Error loading menu:", response.status);
+        setMenuCategories([]);
+      }
     } catch (err) {
       console.error("Error loading menu:", err);
+      setMenuCategories([]);
     } finally {
       setLoading(false);
     }
@@ -296,58 +308,99 @@ export default function OrderPage() {
                     <p className="mt-2 text-charcoal-600">{t('loading')}</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {menuItems.map((item) => {
-                      const cartItem = cart.find(ci => ci.menu_item.id === item.id);
-                      const quantity = cartItem?.quantity || 0;
-                      
-                      return (
-                        <div
-                          key={item.id}
-                          className="flex items-center justify-between p-4 border border-warm-200 rounded-lg hover:border-saffron-300 transition-colors"
-                        >
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-charcoal-900 mb-1">
-                              {item.name}
-                            </h3>
-                            {item.description && (
-                              <div
-                                className="text-sm text-charcoal-600 line-clamp-2 prose prose-sm max-w-none"
-                                dangerouslySetInnerHTML={{ __html: item.description }}
-                              />
-                            )}
-                            {item.price && (
-                              <p className="text-saffron-600 font-medium mt-1">
-                                {item.price}€
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center space-x-2 ml-4">
-                            <button
-                              onClick={() => addToCart(item.id, 1)}
-                              className="p-2 rounded-full bg-saffron-100 text-saffron-700 hover:bg-saffron-200 transition-colors"
-                              aria-label="Добавить в корзину"
-                            >
-                              <Plus className="w-5 h-5" />
-                            </button>
-                            {quantity > 0 && (
-                              <>
-                                <span className="w-12 text-center font-semibold text-charcoal-900">
-                                  {quantity}
-                                </span>
-                                <button
-                                  onClick={() => updateCartItem(cartItem!.id, quantity - 1)}
-                                  className="p-2 rounded-full bg-saffron-100 text-saffron-700 hover:bg-saffron-200 transition-colors"
-                                  aria-label="Уменьшить количество"
-                                >
-                                  <Minus className="w-5 h-5" />
-                                </button>
-                              </>
-                            )}
-                          </div>
+                  <div className="space-y-8">
+                    {menuCategories.map((category) => (
+                      <div key={category.id || 'no-category'}>
+                        <h3 className="text-xl font-bold text-charcoal-900 mb-4 pb-2 border-b border-warm-200">
+                          {category.name}
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {category.items.map((item) => {
+                            const cartItem = cart.find(ci => ci.menu_item.id === item.id);
+                            const quantity = cartItem?.quantity || 0;
+                            
+                            // Получаем изображение: первое из images или из image поля
+                            const itemImage = item.images && item.images.length > 0 
+                              ? item.images[0].image_url 
+                              : item.image;
+                            
+                            return (
+                              <motion.div
+                                key={item.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="bg-white border border-warm-200 rounded-lg overflow-hidden hover:shadow-lg transition-all cursor-pointer"
+                                onClick={() => setSelectedItem(item)}
+                              >
+                                <div className="relative h-48 bg-sand-100">
+                                  {itemImage ? (
+                                    <Image
+                                      src={itemImage}
+                                      alt={item.name}
+                                      fill
+                                      className="object-cover"
+                                      sizes="(max-width: 768px) 100vw, 50vw"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-charcoal-400">
+                                      <ShoppingCart className="w-16 h-16" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="p-4">
+                                  <h4 className="font-semibold text-charcoal-900 mb-2">
+                                    {item.name}
+                                  </h4>
+                                  {item.description && (
+                                    <div
+                                      className="text-sm text-charcoal-600 line-clamp-2 mb-3 prose prose-sm max-w-none"
+                                      dangerouslySetInnerHTML={{ __html: item.description }}
+                                    />
+                                  )}
+                                  <div className="flex items-center justify-between">
+                                    {item.price && (
+                                      <p className="text-saffron-600 font-bold text-lg">
+                                        {item.price}€
+                                      </p>
+                                    )}
+                                    <div className="flex items-center space-x-2">
+                                      {quantity > 0 && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            updateCartItem(cartItem!.id, quantity - 1);
+                                          }}
+                                          className="p-1.5 rounded-full bg-saffron-100 text-saffron-700 hover:bg-saffron-200 transition-colors"
+                                          aria-label="Уменьшить количество"
+                                        >
+                                          <Minus className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                      {quantity > 0 && (
+                                        <span className="w-8 text-center font-semibold text-charcoal-900">
+                                          {quantity}
+                                        </span>
+                                      )}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          addToCart(item.id, 1);
+                                        }}
+                                        className="p-1.5 rounded-full bg-saffron-500 text-white hover:bg-saffron-600 transition-colors"
+                                        aria-label="Добавить в корзину"
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -555,6 +608,101 @@ export default function OrderPage() {
           </div>
         </motion.div>
       </div>
+
+      {/* Модальное окно для описания блюда */}
+      {selectedItem && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedItem(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative h-64 bg-sand-100">
+              {(() => {
+                const itemImage = selectedItem.images && selectedItem.images.length > 0 
+                  ? selectedItem.images[0].image_url 
+                  : selectedItem.image;
+                return itemImage ? (
+                  <Image
+                    src={itemImage}
+                    alt={selectedItem.name}
+                    fill
+                    className="object-cover rounded-t-2xl"
+                    sizes="(max-width: 768px) 100vw, 768px"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-charcoal-400">
+                    <ShoppingCart className="w-24 h-24" />
+                  </div>
+                );
+              })()}
+              <button
+                onClick={() => setSelectedItem(null)}
+                className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-lg hover:bg-sand-50 transition-colors"
+                aria-label="Закрыть"
+              >
+                <X className="w-5 h-5 text-charcoal-900" />
+              </button>
+            </div>
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-charcoal-900 mb-4">
+                {selectedItem.name}
+              </h2>
+              {selectedItem.description && (
+                <div
+                  className="text-charcoal-700 mb-6 prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: selectedItem.description }}
+                />
+              )}
+              {selectedItem.price && (
+                <p className="text-2xl font-bold text-saffron-600 mb-6">
+                  {selectedItem.price}€
+                </p>
+              )}
+              <div className="flex items-center justify-end space-x-3">
+                {(() => {
+                  const cartItem = cart.find(ci => ci.menu_item.id === selectedItem.id);
+                  const quantity = cartItem?.quantity || 0;
+                  
+                  return (
+                    <>
+                      {quantity > 0 && (
+                        <button
+                          onClick={() => updateCartItem(cartItem!.id, quantity - 1)}
+                          className="p-2 rounded-full bg-saffron-100 text-saffron-700 hover:bg-saffron-200 transition-colors"
+                          aria-label="Уменьшить количество"
+                        >
+                          <Minus className="w-5 h-5" />
+                        </button>
+                      )}
+                      {quantity > 0 && (
+                        <span className="w-12 text-center font-semibold text-charcoal-900 text-lg">
+                          {quantity}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => {
+                          addToCart(selectedItem.id, 1);
+                        }}
+                        className="px-6 py-3 bg-saffron-500 text-white rounded-full hover:bg-saffron-600 transition-colors font-medium"
+                        aria-label="Добавить в корзину"
+                      >
+                        <Plus className="w-5 h-5 inline mr-2" />
+                        Добавить в корзину
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
