@@ -617,7 +617,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
             return Customer.objects.all()
         return Customer.objects.filter(user=self.request.user)
     
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    @action(detail=False, methods=['post'])
     def register(self, request):
         """Регистрация нового клиента."""
         email = request.data.get('email')
@@ -736,7 +736,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
         
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    @action(detail=False, methods=['post'])
     def login(self, request):
         """Вход пользователя по email и паролю. Возвращает JWT токены."""
         email = request.data.get('email')
@@ -789,7 +789,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
             'refresh': str(refresh),
         }, status=status.HTTP_200_OK)
     
-    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+    @action(detail=False, methods=['get'])
     def verify_email(self, request):
         """Подтверждение email по токену."""
         token = request.query_params.get('token')
