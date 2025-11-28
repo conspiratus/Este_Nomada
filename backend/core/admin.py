@@ -369,6 +369,7 @@ class MenuItemCategoryTranslationInline(admin.TabularInline):
     fields = ['locale', 'name', 'description']
     verbose_name = 'Перевод'
     verbose_name_plural = 'Переводы'
+    fk_name = 'category'  # Явно указываем имя ForeignKey поля
 
 
 class MenuItemCategoryAdmin(admin.ModelAdmin):
