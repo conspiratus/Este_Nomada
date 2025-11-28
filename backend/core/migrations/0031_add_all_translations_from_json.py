@@ -10,9 +10,33 @@ def load_translations_from_json(apps, schema_editor):
     db_alias = schema_editor.connection.alias
     Translation = apps.get_model('core', 'Translation')
     
-    # Путь к JSON файлам (относительно корня проекта)
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    # Путь к JSON файлам - используем несколько вариантов для надежности
+    # Вариант 1: от миграции вверх до корня проекта
+    migration_file = __file__
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(migration_file))))
     messages_dir = os.path.join(base_dir, 'messages')
+    
+    # Если не нашли, пробуем вариант 2: от backend вверх
+    if not os.path.exists(messages_dir):
+        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(migration_file)))
+        base_dir = os.path.dirname(backend_dir)
+        messages_dir = os.path.join(base_dir, 'messages')
+    
+    # Если все еще не нашли, пробуем вариант 3: абсолютный путь от текущей директории
+    if not os.path.exists(messages_dir):
+        import django
+        from django.conf import settings
+        try:
+            # Пробуем получить BASE_DIR из settings
+            base_dir = getattr(settings, 'BASE_DIR', None)
+            if base_dir:
+                # Идем на уровень выше от backend
+                base_dir = os.path.dirname(os.path.dirname(base_dir))
+                messages_dir = os.path.join(base_dir, 'messages')
+        except:
+            pass
+    
+    print(f'[Migration] Looking for messages in: {messages_dir}')
     
     # Локали для обработки
     locales = ['ru', 'es', 'en']
@@ -33,21 +57,29 @@ def load_translations_from_json(apps, schema_editor):
             # Рекурсивно обходим JSON структуру
             def process_dict(data, namespace=''):
                 """Рекурсивно обрабатывает вложенные словари."""
+                count = 0
                 for key, value in data.items():
                     if isinstance(value, dict):
                         # Если значение - словарь, это namespace
                         current_namespace = f"{namespace}.{key}" if namespace else key
                         # Рекурсивно обрабатываем вложенную структуру
-                        process_dict(value, current_namespace)
+                        count += process_dict(value, current_namespace)
                     elif isinstance(value, str):
                         # Строковое значение - создаем перевод
                         current_namespace = namespace if namespace else 'common'
-                        Translation.objects.using(db_alias).get_or_create(
+                        trans, created = Translation.objects.using(db_alias).get_or_create(
                             locale=locale,
                             namespace=current_namespace,
                             key=key,
                             defaults={'value': value}
                         )
+                        if created:
+                            count += 1
+                return count
+            
+            # Обрабатываем все переводы
+            total_created = process_dict(translations_data)
+            print(f'[Migration] Created {total_created} translations for locale: {locale}')
             
             # Обрабатываем все переводы
             process_dict(translations_data)
