@@ -216,6 +216,17 @@ TTK_GIT_USER_NAME = env('TTK_GIT_USER_NAME', default='Este Nomada Chef')
 TTK_GIT_USER_EMAIL = env('TTK_GIT_USER_EMAIL', default='chef@estenomada.es')
 TTK_USE_GIT = env.bool('TTK_USE_GIT', default=True)  # Переключение между Git и FileField
 
+# Email Settings
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = env('EMAIL_HOST', default='localhost')
+EMAIL_PORT = env.int('EMAIL_PORT', default=25)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=False)
+EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL', default=False)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@estenomada.es')
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
 # Logging
 # Создаём директорию для логов, если её нет
 logs_dir = os.path.join(BASE_DIR, 'logs')
