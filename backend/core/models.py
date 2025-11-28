@@ -1023,7 +1023,7 @@ class DeliverySettings(models.Model):
     class Meta:
         db_table = 'delivery_settings'
         verbose_name = 'Настройки доставки и ЛК'
-        verbose_name_plural = '⚙️ ЛК: Настройки доставки'
+        verbose_name_plural = 'Настройки доставки и ЛК'
     
     def __str__(self):
         return 'Настройки доставки и ЛК'
