@@ -48,6 +48,7 @@ interface Customer {
 
 export default function AccountPage() {
   const t = useTranslations('account');
+  const tReg = useTranslations('registration');
   const locale = useLocale();
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -57,8 +58,41 @@ export default function AccountPage() {
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loggingIn, setLoggingIn] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [registrationData, setRegistrationData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    passwordConfirm: '',
+  });
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
+  const [registering, setRegistering] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   const API_BASE_URL = getApiUrl();
+
+  // Проверяем, есть ли данные заказа в localStorage для предзаполнения
+  useEffect(() => {
+    const lastOrderData = localStorage.getItem('lastOrderData');
+    if (lastOrderData) {
+      try {
+        const data = JSON.parse(lastOrderData);
+        setRegistrationData(prev => ({
+          ...prev,
+          name: data.name || prev.name,
+          email: data.email || prev.email,
+          phone: data.phone || prev.phone,
+        }));
+        // Показываем форму регистрации, если есть данные заказа
+        setShowRegistration(true);
+        // Удаляем данные из localStorage после использования
+        localStorage.removeItem('lastOrderData');
+      } catch (e) {
+        console.error('Error parsing lastOrderData:', e);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     loadAccountData();
@@ -167,6 +201,58 @@ export default function AccountPage() {
     }
   };
 
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegistrationError(null);
+
+    // Валидация
+    if (!registrationData.name || !registrationData.email || !registrationData.phone) {
+      setRegistrationError(tReg('allFieldsRequired') || t('allFieldsRequired') || 'Все поля обязательны для заполнения');
+      return;
+    }
+
+    if (!registrationData.password || registrationData.password.length < 8) {
+      setRegistrationError(tReg('passwordMinLength') || t('passwordMinLength') || 'Пароль должен содержать минимум 8 символов');
+      return;
+    }
+
+    if (registrationData.password !== registrationData.passwordConfirm) {
+      setRegistrationError(tReg('passwordsDoNotMatch') || t('passwordsDoNotMatch') || 'Пароли не совпадают');
+      return;
+    }
+
+    setRegistering(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/customers/register/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: registrationData.name,
+          email: registrationData.email,
+          phone: registrationData.phone,
+          password: registrationData.password,
+        }),
+      });
+
+      if (response.ok) {
+        setRegistrationSuccess(true);
+        setTimeout(() => {
+          // Перезагружаем данные аккаунта
+          loadAccountData();
+        }, 1500);
+      } else {
+        const errorData = await response.json();
+        setRegistrationError(errorData.error || tReg('error') || t('registrationError') || 'Ошибка регистрации');
+      }
+    } catch (err) {
+      console.error("Error registering:", err);
+      setRegistrationError(tReg('error') || t('registrationError') || 'Ошибка регистрации');
+    } finally {
+      setRegistering(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-sand-50 py-20">
@@ -181,11 +267,149 @@ export default function AccountPage() {
               <h1 className="text-3xl font-bold text-charcoal-900 mb-2 text-center">
                 {t('title')}
               </h1>
-              <p className="text-charcoal-600 mb-6 text-center">
-                {t('loginMessage') || 'Войдите в свой аккаунт'}
-              </p>
+              
+              {/* Переключение между входом и регистрацией */}
+              <div className="flex mb-6 bg-sand-100 rounded-lg p-1">
+                <button
+                  type="button"
+                  onClick={() => setShowRegistration(false)}
+                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                    !showRegistration
+                      ? 'bg-white text-charcoal-900 shadow-sm'
+                      : 'text-charcoal-600 hover:text-charcoal-900'
+                  }`}
+                >
+                  {t('login') || 'Вход'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRegistration(true)}
+                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                    showRegistration
+                      ? 'bg-white text-charcoal-900 shadow-sm'
+                      : 'text-charcoal-600 hover:text-charcoal-900'
+                  }`}
+                >
+                  {t('register') || 'Регистрация'}
+                </button>
+              </div>
 
-              <form onSubmit={handleLogin} className="space-y-4">
+              {registrationSuccess ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-charcoal-900 mb-2">
+                    {tReg('success') || t('registrationSuccess') || 'Регистрация успешна!'}
+                  </h3>
+                  <p className="text-charcoal-600">
+                    {tReg('successMessage') || t('registrationSuccessMessage') || 'Вы успешно зарегистрировались. Теперь вы можете отслеживать свои заказы.'}
+                  </p>
+                </div>
+              ) : showRegistration ? (
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <p className="text-charcoal-600 mb-6 text-center text-sm">
+                    {tReg('subtitle') || t('registrationSubtitle') || 'Создайте аккаунт для отслеживания статуса заказа'}
+                  </p>
+
+                  {/* Имя */}
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal-700 mb-2">
+                      {tReg('name') || t('name')} *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={registrationData.name}
+                      onChange={(e) => setRegistrationData({ ...registrationData, name: e.target.value })}
+                      className="w-full px-4 py-3 rounded-lg border border-warm-300 focus:ring-2 focus:ring-saffron-500 focus:border-transparent outline-none"
+                      placeholder={tReg('namePlaceholder') || t('namePlaceholder') || 'Ваше имя'}
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal-700 mb-2">
+                      {tReg('email') || t('email')} *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={registrationData.email}
+                      onChange={(e) => setRegistrationData({ ...registrationData, email: e.target.value })}
+                      className="w-full px-4 py-3 rounded-lg border border-warm-300 focus:ring-2 focus:ring-saffron-500 focus:border-transparent outline-none"
+                      placeholder={tReg('emailPlaceholder') || t('emailPlaceholder') || 'your@email.com'}
+                    />
+                  </div>
+
+                  {/* Телефон */}
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal-700 mb-2">
+                      {tReg('phone') || t('phone')} *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={registrationData.phone}
+                      onChange={(e) => setRegistrationData({ ...registrationData, phone: e.target.value })}
+                      className="w-full px-4 py-3 rounded-lg border border-warm-300 focus:ring-2 focus:ring-saffron-500 focus:border-transparent outline-none"
+                      placeholder={tReg('phonePlaceholder') || t('phonePlaceholder') || '+34 XXX XXX XXX'}
+                    />
+                  </div>
+
+                  {/* Пароль */}
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal-700 mb-2">
+                      {tReg('password') || t('password') || 'Пароль'} *
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={registrationData.password}
+                      onChange={(e) => setRegistrationData({ ...registrationData, password: e.target.value })}
+                      className="w-full px-4 py-3 rounded-lg border border-warm-300 focus:ring-2 focus:ring-saffron-500 focus:border-transparent outline-none"
+                      placeholder={tReg('passwordPlaceholder') || t('passwordPlaceholder') || 'Минимум 8 символов'}
+                    />
+                  </div>
+
+                  {/* Подтверждение пароля */}
+                  <div>
+                    <label className="block text-sm font-medium text-charcoal-700 mb-2">
+                      {tReg('passwordConfirm') || t('passwordConfirm') || 'Подтвердите пароль'} *
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={registrationData.passwordConfirm}
+                      onChange={(e) => setRegistrationData({ ...registrationData, passwordConfirm: e.target.value })}
+                      className="w-full px-4 py-3 rounded-lg border border-warm-300 focus:ring-2 focus:ring-saffron-500 focus:border-transparent outline-none"
+                      placeholder={tReg('passwordConfirmPlaceholder') || t('passwordConfirmPlaceholder') || 'Повторите пароль'}
+                    />
+                  </div>
+
+                  {registrationError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <p className="text-sm text-red-600">{registrationError}</p>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={registering}
+                    className="w-full px-6 py-3 bg-saffron-500 text-white rounded-full hover:bg-saffron-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {registering ? (tReg('registering') || t('registering') || 'Регистрация...') : (tReg('register') || t('register') || 'Зарегистрироваться')}
+                  </button>
+                </form>
+              ) : (
+                <>
+                  <p className="text-charcoal-600 mb-6 text-center">
+                    {t('loginMessage') || 'Войдите в свой аккаунт'}
+                  </p>
+
+                  <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-charcoal-700 mb-2">
                     {t('email')}
@@ -229,17 +453,22 @@ export default function AccountPage() {
                 </button>
               </form>
 
-              <div className="mt-6 text-center">
-                <p className="text-sm text-charcoal-600 mb-2">
-                  {t('noAccount') || 'Нет аккаунта?'}
-                </p>
-                <button
-                  onClick={() => router.push(`/${locale}/order`)}
-                  className="text-saffron-600 hover:text-saffron-700 font-medium"
-                >
-                  {t('goToOrder')}
-                </button>
-              </div>
+                  {!showRegistration && (
+                    <div className="mt-6 text-center">
+                      <p className="text-sm text-charcoal-600 mb-2">
+                        {t('noAccount') || 'Нет аккаунта?'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowRegistration(true)}
+                        className="text-saffron-600 hover:text-saffron-700 font-medium"
+                      >
+                        {tReg('register') || t('register') || 'Зарегистрироваться'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </motion.div>
         </div>

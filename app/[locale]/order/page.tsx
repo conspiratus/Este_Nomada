@@ -280,15 +280,16 @@ export default function OrderPage() {
       });
 
       if (response.ok) {
-        const orderData = await response.json();
+        const orderResponse = await response.json();
         setShowSuccess(true);
         
-        // Сохраняем данные заказа для формы регистрации
-        setLastOrderData({
+        // Сохраняем данные заказа в localStorage для предзаполнения формы регистрации
+        const orderData = {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-        });
+        };
+        localStorage.setItem('lastOrderData', JSON.stringify(orderData));
         
         // Проверяем, зарегистрирован ли пользователь
         // Если нет - редиректим на страницу аккаунта, где можно зарегистрироваться
