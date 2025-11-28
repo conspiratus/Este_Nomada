@@ -17,12 +17,29 @@ cd "$PROJECT_DIR"
 echo ""
 echo "📥 Обновление кода из git..."
 if [ -d ".git" ]; then
+    echo "   Получение изменений из GitHub..."
     git fetch origin
-    git checkout feature/personal-cabinet-cart 2>/dev/null || git checkout -b feature/personal-cabinet-cart origin/feature/personal-cabinet-cart
+    
+    # Сохраняем текущий бранч
+    CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
+    echo "   Текущий бранч: $CURRENT_BRANCH"
+    
+    # Переключаемся на feature/personal-cabinet-cart
+    echo "   Переключение на бранч feature/personal-cabinet-cart..."
+    if git checkout feature/personal-cabinet-cart 2>/dev/null; then
+        echo "   ✅ Переключились на существующий бранч"
+    else
+        echo "   Создание нового бранча из origin/feature/personal-cabinet-cart..."
+        git checkout -b feature/personal-cabinet-cart origin/feature/personal-cabinet-cart
+    fi
+    
+    # Обновляем код
+    echo "   Обновление кода..."
     git pull origin feature/personal-cabinet-cart
-    echo "✅ Код обновлен"
+    echo "✅ Код обновлен из бранча feature/personal-cabinet-cart"
 else
     echo "⚠️  Git репозиторий не найден, пропускаем обновление кода"
+    echo "   Убедитесь, что код обновлен вручную"
 fi
 
 # 2. Установка зависимостей backend
