@@ -77,7 +77,7 @@ export default function OrderPage() {
 
   const loadCart = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/cart/`, {
+      const response = await fetch(`${API_BASE_URL}/cart/?locale=${locale}`, {
         credentials: 'include',
       });
       if (response.ok) {
@@ -103,7 +103,7 @@ export default function OrderPage() {
   const addToCart = async (menuItemId: number, quantity: number = 1) => {
     try {
       // Сначала получаем или создаем корзину
-      let cartResponse = await fetch(`${API_BASE_URL}/cart/`, {
+      let cartResponse = await fetch(`${API_BASE_URL}/cart/?locale=${locale}`, {
         credentials: 'include',
       });
       let cartData = await cartResponse.json();
@@ -130,7 +130,7 @@ export default function OrderPage() {
 
   const updateCartItem = async (cartItemId: number, quantity: number) => {
     try {
-      let cartResponse = await fetch(`${API_BASE_URL}/cart/`, {
+      let cartResponse = await fetch(`${API_BASE_URL}/cart/?locale=${locale}`, {
         credentials: 'include',
       });
       let cartData = await cartResponse.json();
@@ -156,7 +156,7 @@ export default function OrderPage() {
 
   const removeFromCart = async (cartItemId: number) => {
     try {
-      let cartResponse = await fetch(`${API_BASE_URL}/cart/`, {
+      let cartResponse = await fetch(`${API_BASE_URL}/cart/?locale=${locale}`, {
         credentials: 'include',
       });
       let cartData = await cartResponse.json();
