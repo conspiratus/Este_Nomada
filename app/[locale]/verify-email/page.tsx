@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useTranslations, useLocale } from 'next-intl';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { motion } from "framer-motion";
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { getApiUrl } from '@/lib/get-api-url';
 import Link from 'next/link';
+
+// Делаем страницу динамической, так как она использует query параметры
+export const dynamic = 'force-dynamic';
 
 interface VerifyResponse {
   success: boolean;
@@ -17,11 +20,10 @@ interface VerifyResponse {
   locale?: string;
 }
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const t = useTranslations('verifyEmail');
   const locale = useLocale();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'already_verified'>('loading');
   const [message, setMessage] = useState<string>('');
   const [customerName, setCustomerName] = useState<string | null>(null);
@@ -179,6 +181,23 @@ export default function VerifyEmailPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-sand-50 py-20">
+        <div className="container mx-auto px-4 max-w-2xl">
+          <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 text-center">
+            <Loader2 className="w-16 h-16 text-saffron-500 animate-spin mx-auto mb-6" />
+            <p className="text-charcoal-600 text-lg">Загрузка...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
 

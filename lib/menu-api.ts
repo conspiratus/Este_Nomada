@@ -112,12 +112,19 @@ export async function getMenuItems(locale?: Locale): Promise<MenuItem[]> {
       }
     }
     
-    const fetchOptions: RequestInit = {
-      cache: 'no-store', // Отключаем кеш для получения актуальных данных
-    };
-    
-    // Для серверных запросов используем no-store, чтобы всегда получать свежие данные
-    // Это важно для корректного отображения локализованных описаний
+    // Для серверных компонентов используем кеширование с revalidate
+    // Это позволяет статической генерации работать корректно
+    // Страница с revalidate=60 будет регенерироваться каждую минуту
+    const fetchOptions: RequestInit = typeof window === 'undefined' 
+      ? {
+          // На сервере используем кеширование для статической генерации
+          cache: 'force-cache',
+          next: { revalidate: 60 } // Регенерируем каждую минуту
+        }
+      : {
+          // На клиенте не кешируем для получения актуальных данных
+          cache: 'no-store'
+        };
     
     const response = await fetch(url, fetchOptions);
 

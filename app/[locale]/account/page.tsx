@@ -59,6 +59,7 @@ export default function AccountPage() {
 
   useEffect(() => {
     loadAccountData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadAccountData = async () => {
