@@ -135,13 +135,17 @@ export default function AccountPage() {
       }
       
       // Проверяем, авторизован ли пользователь (используем JWT)
+      console.log('[Account] Making request to /customers/ with token');
       const authResponse = await fetchWithAuth(`${API_BASE_URL}/customers/`);
+      console.log('[Account] Response status:', authResponse.status);
       
       if (authResponse.ok) {
         const customerData = await authResponse.json();
+        console.log('[Account] Customer data received:', { count: customerData?.length || 0 });
         if (customerData && customerData.length > 0) {
           setCustomer(customerData[0]);
           setIsAuthenticated(true);
+          console.log('[Account] User authenticated, loading orders');
           
           // Загружаем заказы
           const ordersResponse = await fetchWithAuth(`${API_BASE_URL}/orders/my_orders/`);
@@ -149,20 +153,25 @@ export default function AccountPage() {
           if (ordersResponse.ok) {
             const ordersData = await ordersResponse.json();
             setOrders(ordersData);
+            console.log('[Account] Orders loaded:', ordersData.length);
           }
         } else {
           // Если данных нет, пользователь не авторизован
+          console.log('[Account] No customer data, user not authenticated');
           setIsAuthenticated(false);
           setCustomer(null);
           setOrders([]);
         }
       } else if (authResponse.status === 401) {
         // Если получили 401, токен невалидный или истек - очищаем
+        console.log('[Account] Got 401, clearing tokens');
+        clearTokens();
         setIsAuthenticated(false);
         setCustomer(null);
         setOrders([]);
       } else {
         // Другая ошибка
+        console.log('[Account] Got error:', authResponse.status);
         setIsAuthenticated(false);
         setCustomer(null);
         setOrders([]);
