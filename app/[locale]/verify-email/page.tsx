@@ -48,7 +48,15 @@ function VerifyEmailContent() {
           }
         );
 
-        const data: VerifyResponse = await response.json();
+        let data: VerifyResponse;
+        try {
+          data = await response.json();
+        } catch (e) {
+          console.error('[VerifyEmail] Failed to parse response:', e);
+          setStatus('error');
+          setMessage(t('error'));
+          return;
+        }
 
         if (response.ok && data.success) {
           if (data.already_verified) {
@@ -63,7 +71,8 @@ function VerifyEmailContent() {
           }
         } else {
           setStatus('error');
-          setMessage(data.error || t('error'));
+          setMessage(data.error || data.message || t('error'));
+          console.error('[VerifyEmail] Verification failed:', data);
         }
       } catch (err) {
         console.error("Error verifying email:", err);
