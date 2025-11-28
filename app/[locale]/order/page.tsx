@@ -8,6 +8,7 @@ import { getApiUrl } from '@/lib/get-api-url';
 import { Plus, Minus, Heart, ShoppingCart, MapPin, X } from 'lucide-react';
 import Image from 'next/image';
 import type { MenuCategoryGroup } from '@/lib/menu-api';
+import RegistrationModal from '@/components/modals/RegistrationModal';
 
 interface CartItem {
   id: number;
@@ -45,6 +46,8 @@ export default function OrderPage() {
   const [calculatingDelivery, setCalculatingDelivery] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [lastOrderEmail, setLastOrderEmail] = useState<string | null>(null);
 
   const API_BASE_URL = getApiUrl();
 
@@ -270,7 +273,35 @@ export default function OrderPage() {
       });
 
       if (response.ok) {
+        const orderData = await response.json();
         setShowSuccess(true);
+        setLastOrderEmail(formData.email);
+        
+        // Проверяем, зарегистрирован ли пользователь
+        // Если нет - предлагаем регистрацию через 2 секунды
+        setTimeout(() => {
+          // Проверяем, есть ли у пользователя аккаунт
+          fetch(`${API_BASE_URL}/customers/`, {
+            credentials: 'include',
+          }).then(res => {
+            if (res.ok) {
+              res.json().then(customers => {
+                const customer = customers && customers.length > 0 ? customers[0] : null;
+                if (!customer || !customer.is_registered) {
+                  // Пользователь не зарегистрирован - показываем модальное окно
+                  setShowRegistrationModal(true);
+                }
+              });
+            } else {
+              // Пользователь не авторизован - показываем модальное окно
+              setShowRegistrationModal(true);
+            }
+          }).catch(() => {
+            // В случае ошибки тоже показываем модальное окно
+            setShowRegistrationModal(true);
+          });
+        }, 2000);
+        
         // Очищаем корзину и форму
         setCart([]);
         setFormData({
@@ -747,6 +778,20 @@ export default function OrderPage() {
           </motion.div>
         </div>
       )}
+
+      {/* Модальное окно регистрации */}
+      <RegistrationModal
+        isOpen={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+        onSuccess={() => {
+          setShowRegistrationModal(false);
+        }}
+        initialData={{
+          name: formData.name || undefined,
+          email: lastOrderEmail || formData.email || undefined,
+          phone: formData.phone || undefined,
+        }}
+      />
     </div>
   );
 }

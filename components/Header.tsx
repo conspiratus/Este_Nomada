@@ -29,6 +29,7 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
     site_name: 'Este Nómada',
     logo_url: null,
   });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   // Определяем текущую локаль: сначала из prop, потом из pathname, потом из hook
   const getCurrentLocale = (): Locale => {
@@ -44,7 +45,7 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
   
   const locale = getCurrentLocale();
 
-  // Загружаем настройки сайта
+  // Загружаем настройки сайта и проверяем авторизацию
   useEffect(() => {
     const fetchSettings = async () => {
       try {
@@ -58,7 +59,23 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
         console.error('[Header] Error fetching settings:', error);
       }
     };
+    
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/customers/', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const customers = await response.json();
+          setIsAuthenticated(customers && customers.length > 0);
+        }
+      } catch (error) {
+        // Игнорируем ошибки проверки авторизации
+      }
+    };
+    
     fetchSettings();
+    checkAuth();
   }, []);
 
   useEffect(() => {
@@ -185,6 +202,14 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
           >
             {t('order')}
           </Link>
+          {isAuthenticated && (
+            <Link
+              href={`/${locale}/account`}
+              className="px-6 py-2 bg-charcoal-700 text-white rounded-full hover:bg-charcoal-800 transition-colors font-medium"
+            >
+              {t('account')}
+            </Link>
+          )}
         </div>
 
         {/* Language Switcher - Dropdown */}
@@ -337,6 +362,15 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
               >
                 {t('order')}
               </Link>
+              {isAuthenticated && (
+                <Link
+                  href={`/${locale}/account`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="w-full px-6 py-2 bg-charcoal-700 text-white rounded-full hover:bg-charcoal-800 transition-colors font-medium text-center block mt-2"
+                >
+                  {t('account')}
+                </Link>
+              )}
             </div>
           </motion.div>
         )}

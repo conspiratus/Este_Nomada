@@ -347,6 +347,12 @@ class OrderSerializer(serializers.ModelSerializer):
     def get_total(self, obj):
         """Получить общую стоимость заказа."""
         return obj.get_total()
+    
+    def create(self, validated_data):
+        """Создание заказа с исключением selected_dishes из validated_data."""
+        # Удаляем selected_dishes, так как это не поле модели
+        validated_data.pop('selected_dishes', None)
+        return super().create(validated_data)
 
 
 class InstagramPostSerializer(serializers.ModelSerializer):

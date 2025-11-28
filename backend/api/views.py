@@ -199,11 +199,46 @@ class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     
+    def get_serializer_context(self):
+        """Добавляем request в контекст для сериализатора."""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
     def get_permissions(self):
         """Разные права доступа."""
-        if self.action == 'create':
+        if self.action in ['create', 'my_orders']:
             return [AllowAny()]
         return [IsAuthenticated()]
+    
+    def get_queryset(self):
+        """Фильтрация заказов."""
+        if self.request.user.is_authenticated:
+            customer = Customer.objects.filter(user=self.request.user).first()
+            if customer:
+                return Order.objects.filter(customer=customer).order_by('-created_at')
+        return Order.objects.none()
+    
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+    def my_orders(self, request):
+        """Получить заказы текущего пользователя или по email."""
+        if request.user.is_authenticated:
+            customer = Customer.objects.filter(user=request.user).first()
+            if customer:
+                orders = Order.objects.filter(customer=customer).order_by('-created_at')
+                serializer = self.get_serializer(orders, many=True, context={'request': request})
+                return Response(serializer.data)
+        
+        # Для неавторизованных - поиск по email
+        email = request.query_params.get('email')
+        if email:
+            customer = Customer.objects.filter(email=email).first()
+            if customer:
+                orders = Order.objects.filter(customer=customer).order_by('-created_at')
+                serializer = self.get_serializer(orders, many=True, context={'request': request})
+                return Response(serializer.data)
+        
+        return Response([], status=status.HTTP_200_OK)
     
     def create(self, request, *args, **kwargs):
         """Создание заказа с элементами."""
@@ -265,7 +300,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         if customer:
             data['customer'] = customer.id
         
-        serializer = self.get_serializer(data=data)
+        # Удаляем selected_dishes из data, так как это не поле модели
+        data_for_serializer = data.copy()
+        if 'selected_dishes' in data_for_serializer:
+            del data_for_serializer['selected_dishes']
+        
+        serializer = self.get_serializer(data=data_for_serializer)
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
         
@@ -554,13 +594,17 @@ class CustomerViewSet(viewsets.ModelViewSet):
                 )
             customer.user = user
             customer.is_registered = True
+            
+            # Авторизуем пользователя
+            from django.contrib.auth import login
+            login(request, user)
         
         # Генерируем токен подтверждения email
         verification_token = secrets.token_urlsafe(32)
         customer.email_verification_token = verification_token
         customer.save()
         
-        # Отправляем email с подтверждением
+        # Отправляем email с подтверждением (если настроено)
         if hasattr(django_settings, 'EMAIL_HOST_USER') and django_settings.EMAIL_HOST_USER:
             verification_url = f"{request.build_absolute_uri('/')}api/customers/verify-email/?token={verification_token}"
             send_mail(
@@ -570,6 +614,9 @@ class CustomerViewSet(viewsets.ModelViewSet):
                 recipient_list=[email],
                 fail_silently=True,
             )
+        
+        serializer = CustomerSerializer(customer, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         serializer = self.get_serializer(customer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
