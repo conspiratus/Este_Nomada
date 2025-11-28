@@ -208,6 +208,7 @@ export default function AccountPage() {
         if (data.customer) {
           setCustomer(data.customer);
           setIsAuthenticated(true);
+          setLoading(false); // Убираем состояние загрузки
           
           // Загружаем заказы
           const ordersResponse = await fetchWithAuth(`${API_BASE_URL}/orders/my_orders/?locale=${locale}`);
@@ -277,6 +278,7 @@ export default function AccountPage() {
         if (data.customer) {
           setCustomer(data.customer);
           setIsAuthenticated(true);
+          setLoading(false); // Убираем состояние загрузки
           setRegistrationSuccess(true);
           
           // Загружаем заказы
