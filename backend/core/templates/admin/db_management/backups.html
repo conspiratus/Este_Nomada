@@ -1,0 +1,108 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block content %}
+<div class="db-backups">
+    <h1>{{ title }}</h1>
+    
+    <p>
+        <a href="{% url 'admin:db_overview' %}" class="button">← Назад к обзору</a>
+    </p>
+    
+    <!-- Создание бэкапа -->
+    <div class="module">
+        <h2>Создать новый бэкап</h2>
+        <form method="post" action="{% url 'admin:db_backup_create' %}">
+            {% csrf_token %}
+            <button type="submit" class="button" onclick="return confirm('Создать бэкап базы данных? Это может занять некоторое время.');">
+                Создать бэкап
+            </button>
+        </form>
+    </div>
+    
+    <!-- Список бэкапов -->
+    <div class="module">
+        <h2>Доступные бэкапы ({{ backups|length }})</h2>
+        {% if backups %}
+        <table id="backups-list">
+            <thead>
+                <tr>
+                    <th>Имя файла</th>
+                    <th>Размер</th>
+                    <th>Дата создания</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for backup in backups %}
+                <tr>
+                    <td><strong>{{ backup.filename }}</strong></td>
+                    <td>{{ backup.size_mb }} MB</td>
+                    <td>{{ backup.created|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        <a href="{% url 'admin:db_backup_download' backup.filename %}" class="button">Скачать</a>
+                        <form method="post" action="{% url 'admin:db_backup_restore' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="filename" value="{{ backup.filename }}">
+                            <button type="submit" class="button danger" onclick="return confirm('ВНИМАНИЕ! Это действие заменит текущую базу данных на бэкап. Продолжить?');">
+                                Восстановить
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>Бэкапы не найдены. Создайте первый бэкап, нажав кнопку выше.</p>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.db-backups .module {
+    margin-bottom: 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+}
+.db-backups table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.db-backups table th,
+.db-backups table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+.db-backups table th {
+    background: #f5f5f5;
+    font-weight: bold;
+}
+.db-backups .button {
+    display: inline-block;
+    padding: 5px 15px;
+    background: #417690;
+    color: white;
+    text-decoration: none;
+    border-radius: 3px;
+    border: none;
+    cursor: pointer;
+    margin-right: 5px;
+}
+.db-backups .button:hover {
+    background: #205067;
+}
+.db-backups .button.danger {
+    background: #ba2121;
+}
+.db-backups .button.danger:hover {
+    background: #a41515;
+}
+</style>
+{% endblock %}
+

@@ -1,0 +1,117 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block content %}
+<div class="db-table-view">
+    <h1>{{ title }}</h1>
+    
+    <p>
+        <a href="{% url 'admin:db_overview' %}" class="button">← Назад к обзору</a>
+    </p>
+    
+    <div class="module">
+        <p><strong>Всего записей:</strong> {{ total_count }}</p>
+        <p><strong>Показано:</strong> {{ offset|add:1 }} - {{ end_index }} из {{ total_count }}</p>
+    </div>
+    
+    <!-- Пагинация -->
+    <div class="pagination">
+        {% if has_prev %}
+        <a href="?limit={{ limit }}&offset={{ prev_offset }}" class="button">← Предыдущие</a>
+        {% endif %}
+        {% if has_next %}
+        <a href="?limit={{ limit }}&offset={{ next_offset }}" class="button">Следующие →</a>
+        {% endif %}
+    </div>
+    
+    <!-- Таблица данных -->
+    <div class="module" style="overflow-x: auto;">
+        <table id="table-data">
+            <thead>
+                <tr>
+                    {% for column in columns %}
+                    <th>{{ column }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    {% for value in row %}
+                    <td>
+                        {% if value is None %}
+                        <em>NULL</em>
+                        {% elif value|length > 100 %}
+                        {{ value|truncatechars:100 }}...
+                        {% else %}
+                        {{ value }}
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="{{ columns|length }}">Нет данных</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Пагинация внизу -->
+    <div class="pagination">
+        {% if has_prev %}
+        <a href="?limit={{ limit }}&offset={{ prev_offset }}" class="button">← Предыдущие</a>
+        {% endif %}
+        {% if has_next %}
+        <a href="?limit={{ limit }}&offset={{ next_offset }}" class="button">Следующие →</a>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.db-table-view .module {
+    margin-bottom: 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+}
+.db-table-view table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.db-table-view table th,
+.db-table-view table td {
+    padding: 8px;
+    text-align: left;
+    border: 1px solid #ddd;
+    word-break: break-word;
+}
+.db-table-view table th {
+    background: #f5f5f5;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+}
+.db-table-view .pagination {
+    margin: 20px 0;
+}
+.db-table-view .button {
+    display: inline-block;
+    padding: 5px 15px;
+    background: #417690;
+    color: white;
+    text-decoration: none;
+    border-radius: 3px;
+    margin-right: 10px;
+}
+.db-table-view .button:hover {
+    background: #205067;
+}
+</style>
+{% endblock %}
+

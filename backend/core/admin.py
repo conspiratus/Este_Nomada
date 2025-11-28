@@ -26,6 +26,25 @@ from .models import (
 class CustomAdminSite(AdminSite):
     """Кастомный AdminSite с группировкой моделей по категориям."""
     
+    def get_urls(self):
+        """Добавляем кастомные URL для управления БД."""
+        from django.urls import path
+        from .db_admin_views import (
+            db_overview, db_table_view, db_backup_create,
+            db_backups_list, db_backup_download, db_backup_restore
+        )
+        
+        urls = super().get_urls()
+        custom_urls = [
+            path('db/', db_overview, name='db_overview'),
+            path('db/table/<str:table_name>/', db_table_view, name='db_table_view'),
+            path('db/backups/', db_backups_list, name='db_backups'),
+            path('db/backup/create/', db_backup_create, name='db_backup_create'),
+            path('db/backup/download/<str:filename>/', db_backup_download, name='db_backup_download'),
+            path('db/backup/restore/', db_backup_restore, name='db_backup_restore'),
+        ]
+        return custom_urls + urls
+    
     def get_app_list(self, request):
         """
         Возвращает список приложений с группировкой моделей по категориям.
@@ -97,6 +116,32 @@ class CustomAdminSite(AdminSite):
                     model_info['add_url'] = f'/admin/{app_label}/{model._meta.model_name}/add/'
                 
                 standard_apps[app_label]['models'].append(model_info)
+        
+        # Добавляем раздел "Управление БД"
+        if request.user.is_staff:
+            db_management = {
+                'name': 'Управление БД',
+                'app_label': 'db_management',
+                'app_url': '/admin/db/',
+                'has_module_perms': True,
+                'models': [
+                    {
+                        'name': 'Обзор БД',
+                        'object_name': 'DatabaseOverview',
+                        'perms': {'view': True},
+                        'admin_url': '/admin/db/',
+                        'add_url': None,
+                    },
+                    {
+                        'name': 'Бэкапы',
+                        'object_name': 'DatabaseBackups',
+                        'perms': {'view': True},
+                        'admin_url': '/admin/db/backups/',
+                        'add_url': None,
+                    },
+                ]
+            }
+            app_dict['db_management'] = db_management
         
         # Объединяем кастомные категории и стандартные приложения
         result = list(app_dict.values())
