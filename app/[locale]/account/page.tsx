@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { getApiUrl } from '@/lib/get-api-url';
 import { Package, Clock, CheckCircle, XCircle, User, Mail, Phone, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { saveTokens, fetchWithAuth, hasToken, getAccessToken } from '@/lib/auth';
+import { saveTokens, fetchWithAuth, hasToken, getAccessToken, clearTokens } from '@/lib/auth';
 
 interface OrderItem {
   id: number;
@@ -97,13 +97,24 @@ export default function AccountPage() {
 
   useEffect(() => {
     // Проверяем наличие токена при загрузке страницы
-    if (hasToken()) {
-      loadAccountData();
-    } else {
-      // Если токена нет, сразу показываем форму входа
-      setLoading(false);
-      setIsAuthenticated(false);
-    }
+    // Используем setTimeout, чтобы убедиться, что localStorage доступен
+    const checkAuth = () => {
+      if (typeof window !== 'undefined') {
+        const token = getAccessToken();
+        console.log('[Account] useEffect - token exists:', !!token);
+        if (token) {
+          loadAccountData();
+        } else {
+          // Если токена нет, сразу показываем форму входа
+          setLoading(false);
+          setIsAuthenticated(false);
+        }
+      }
+    };
+    
+    // Небольшая задержка для гарантии, что localStorage доступен
+    const timer = setTimeout(checkAuth, 100);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
