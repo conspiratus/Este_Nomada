@@ -11,7 +11,7 @@ from django.apps import apps
 from .models import (
     Story, StoryTranslation, MenuItem, MenuItemTranslation, MenuItemImage, MenuItemAttribute,
     MenuItemCategory, MenuItemCategoryTranslation,
-    HeroImage, HeroSettings, Settings, Order, OrderItem, InstagramPost, Translation,
+    HeroImage, HeroButton, HeroButtonTranslation, HeroSettings, Settings, Order, OrderItem, InstagramPost, Translation,
     ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation,
     DishTTK, TTKVersionHistory, Customer, Cart, CartItem, Favorite, DeliverySettings
 )
@@ -161,7 +161,7 @@ class CustomAdminSite(AdminSite):
             return 'Контент сайта'
         
         # Главная страница
-        elif model_name in ['HeroImage', 'HeroSettings']:
+        elif model_name in ['HeroImage', 'HeroButton', 'HeroSettings']:
             return 'Главная страница'
         
         # Настройки сайта
@@ -489,6 +489,43 @@ class HeroImageAdmin(admin.ModelAdmin):
     
     image_info.short_description = 'Информация'
     image_info.allow_tags = False
+
+
+class HeroButtonTranslationInline(admin.TabularInline):
+    """Inline для переводов кнопок Hero."""
+    model = HeroButtonTranslation
+    extra = 1
+    fields = ['locale', 'text']
+    verbose_name = 'Перевод'
+    verbose_name_plural = 'Переводы'
+
+
+class HeroButtonAdmin(admin.ModelAdmin):
+    """Админка для кнопок Hero."""
+    list_display = ['id', 'order', 'text_preview', 'url', 'style', 'active', 'open_in_new_tab', 'created_at']
+    list_display_links = ['id']
+    list_filter = ['active', 'style', 'open_in_new_tab', 'created_at']
+    list_editable = ['order', 'active', 'open_in_new_tab']
+    search_fields = ['url']
+    inlines = [HeroButtonTranslationInline]
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('order', 'url', 'style', 'active', 'open_in_new_tab')
+        }),
+        ('Даты', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    readonly_fields = ['created_at', 'updated_at']
+    
+    def text_preview(self, obj):
+        """Показываем текст кнопки из первого перевода."""
+        first_translation = obj.translations.first()
+        if first_translation:
+            return first_translation.text
+        return '—'
+    text_preview.short_description = 'Текст кнопки'
 
 
 class HeroSettingsAdmin(admin.ModelAdmin):
@@ -1074,6 +1111,7 @@ custom_admin_site.register(Story, StoryAdmin)
 custom_admin_site.register(MenuItemCategory, MenuItemCategoryAdmin)
 custom_admin_site.register(MenuItem, MenuItemAdmin)
 custom_admin_site.register(HeroImage, HeroImageAdmin)
+custom_admin_site.register(HeroButton, HeroButtonAdmin)
 custom_admin_site.register(HeroSettings, HeroSettingsAdmin)
 custom_admin_site.register(Settings, SettingsAdmin)
 custom_admin_site.register(Order, OrderAdmin)

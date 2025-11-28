@@ -6,7 +6,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     StoryViewSet, MenuItemViewSet, MenuItemCategoryViewSet, SettingsViewSet, OrderViewSet,
     InstagramPostViewSet, TranslationViewSet,
-    HeroImageViewSet, HeroSettingsViewSet, ContentSectionViewSet, AboutSectionViewSet,
+    HeroImageViewSet, HeroButtonViewSet, HeroSettingsViewSet, ContentSectionViewSet, AboutSectionViewSet,
     FooterSectionViewSet, CustomerViewSet, CartViewSet, FavoriteViewSet, DeliverySettingsViewSet
 )
 
@@ -19,6 +19,7 @@ router.register(r'orders', OrderViewSet, basename='order')
 router.register(r'instagram', InstagramPostViewSet, basename='instagram')
 router.register(r'translations', TranslationViewSet, basename='translation')
 router.register(r'hero/images', HeroImageViewSet, basename='heroimage')
+router.register(r'hero/buttons', HeroButtonViewSet, basename='herobutton')
 router.register(r'hero/settings', HeroSettingsViewSet, basename='herosettings')
 router.register(r'sections', ContentSectionViewSet, basename='section')
 router.register(r'about', AboutSectionViewSet, basename='about')

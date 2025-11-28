@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations, useLocale } from 'next-intl';
 import Image from "next/image";
 import Link from "next/link";
-import { getHeroImages, getHeroSettings, type HeroImage, type HeroSettings, type TransitionEffect } from '@/lib/hero-api';
+import { getHeroImages, getHeroButtons, getHeroSettings, type HeroImage, type HeroButton, type HeroSettings, type TransitionEffect } from '@/lib/hero-api';
 
 interface HeroProps {
   locale?: string;
@@ -20,6 +20,7 @@ export default function Hero({ locale: localeProp }: HeroProps = {}) {
   const t = useTranslations('hero');
   const locale = useLocale();
   const [images, setImages] = useState<HeroImage[]>([]);
+  const [buttons, setButtons] = useState<HeroButton[]>([]);
   const [settings, setSettings] = useState<HeroSettings | null>(null);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({
     site_name: 'Este Nómada',
@@ -45,19 +46,21 @@ export default function Hero({ locale: localeProp }: HeroProps = {}) {
     fetchSiteSettings();
   }, []);
 
-  // Загружаем изображения и настройки
+  // Загружаем изображения, кнопки и настройки
   useEffect(() => {
     const loadHeroData = async () => {
       try {
         setLoading(true);
-        const [heroImages, heroSettings] = await Promise.all([
+        const [heroImages, heroButtons, heroSettings] = await Promise.all([
           getHeroImages(),
+          getHeroButtons(locale),
           getHeroSettings(),
         ]);
         
         // Сортируем изображения по order
         const sortedImages = heroImages.sort((a, b) => a.order - b.order);
         setImages(sortedImages);
+        setButtons(heroButtons);
         setSettings(heroSettings);
       } catch (error) {
         console.error('Error loading hero data:', error);
@@ -67,7 +70,7 @@ export default function Hero({ locale: localeProp }: HeroProps = {}) {
     };
 
     loadHeroData();
-  }, []);
+  }, [locale]);
 
   // Автоматическое переключение слайдов
   useEffect(() => {
@@ -130,27 +133,61 @@ export default function Hero({ locale: localeProp }: HeroProps = {}) {
             </motion.p>
 
             {/* Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 1 }}
-              className="flex flex-col sm:flex-row gap-4 justify-center"
-            >
-              <Link
-                href={`/${locale}/stories`}
-                className="px-8 py-4 bg-saffron-500 text-white rounded-full hover:bg-saffron-600 transition-all font-medium text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
+            {buttons.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 1 }}
+                className="flex flex-col sm:flex-row gap-4 justify-center"
               >
-                {t('readMore')}
-              </Link>
-              <a
-                href="https://t.me/este_nomada"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-8 py-4 bg-transparent border-2 border-white text-white rounded-full hover:bg-white/10 transition-all font-medium text-lg"
-              >
-                {t('telegramChannel')}
-              </a>
-            </motion.div>
+                {buttons.map((button) => {
+                  const getButtonClasses = () => {
+                    const baseClasses = "px-8 py-4 rounded-full transition-all font-medium text-lg";
+                    switch (button.style) {
+                      case 'primary':
+                        return `${baseClasses} bg-saffron-500 text-white hover:bg-saffron-600 shadow-lg hover:shadow-xl transform hover:scale-105`;
+                      case 'secondary':
+                        return `${baseClasses} bg-charcoal-700 text-white hover:bg-charcoal-800 shadow-lg hover:shadow-xl`;
+                      case 'outline':
+                        return `${baseClasses} bg-transparent border-2 border-white text-white hover:bg-white/10`;
+                      case 'ghost':
+                        return `${baseClasses} bg-transparent text-white hover:bg-white/5`;
+                      default:
+                        return `${baseClasses} bg-saffron-500 text-white hover:bg-saffron-600`;
+                    }
+                  };
+
+                  const buttonContent = (
+                    <span>{button.text}</span>
+                  );
+
+                  const buttonProps = {
+                    className: getButtonClasses(),
+                    ...(button.open_in_new_tab && {
+                      target: '_blank',
+                      rel: 'noopener noreferrer',
+                    }),
+                  };
+
+                  // Определяем, внутренняя ли это ссылка (начинается с /)
+                  const isInternalLink = button.url.startsWith('/');
+                  
+                  if (isInternalLink) {
+                    return (
+                      <Link key={button.id} href={button.url} {...buttonProps}>
+                        {buttonContent}
+                      </Link>
+                    );
+                  } else {
+                    return (
+                      <a key={button.id} href={button.url} {...buttonProps}>
+                        {buttonContent}
+                      </a>
+                    );
+                  }
+                })}
+              </motion.div>
+            )}
           </motion.div>
         </div>
       </section>
@@ -299,27 +336,61 @@ export default function Hero({ locale: localeProp }: HeroProps = {}) {
           </motion.p>
 
           {/* Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 1 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center"
-          >
-            <Link
-              href={`/${locale}/stories`}
-              className="px-8 py-4 bg-saffron-500 text-white rounded-full hover:bg-saffron-600 transition-all font-medium text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
+          {buttons.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 1 }}
+              className="flex flex-col sm:flex-row gap-4 justify-center"
             >
-              {t('readMore')}
-            </Link>
-            <a
-              href="https://t.me/este_nomada"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-8 py-4 bg-transparent border-2 border-white text-white rounded-full hover:bg-white/10 transition-all font-medium text-lg"
-            >
-              {t('telegramChannel')}
-            </a>
-          </motion.div>
+              {buttons.map((button) => {
+                const getButtonClasses = () => {
+                  const baseClasses = "px-8 py-4 rounded-full transition-all font-medium text-lg";
+                  switch (button.style) {
+                    case 'primary':
+                      return `${baseClasses} bg-saffron-500 text-white hover:bg-saffron-600 shadow-lg hover:shadow-xl transform hover:scale-105`;
+                    case 'secondary':
+                      return `${baseClasses} bg-charcoal-700 text-white hover:bg-charcoal-800 shadow-lg hover:shadow-xl`;
+                    case 'outline':
+                      return `${baseClasses} bg-transparent border-2 border-white text-white hover:bg-white/10`;
+                    case 'ghost':
+                      return `${baseClasses} bg-transparent text-white hover:bg-white/5`;
+                    default:
+                      return `${baseClasses} bg-saffron-500 text-white hover:bg-saffron-600`;
+                  }
+                };
+
+                const buttonContent = (
+                  <span>{button.text}</span>
+                );
+
+                const buttonProps = {
+                  className: getButtonClasses(),
+                  ...(button.open_in_new_tab && {
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                  }),
+                };
+
+                // Определяем, внутренняя ли это ссылка (начинается с /)
+                const isInternalLink = button.url.startsWith('/');
+                
+                if (isInternalLink) {
+                  return (
+                    <Link key={button.id} href={button.url} {...buttonProps}>
+                      {buttonContent}
+                    </Link>
+                  );
+                } else {
+                  return (
+                    <a key={button.id} href={button.url} {...buttonProps}>
+                      {buttonContent}
+                    </a>
+                  );
+                }
+              })}
+            </motion.div>
+          )}
         </motion.div>
       </div>
 

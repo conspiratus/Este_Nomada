@@ -6,7 +6,7 @@ import markdown
 from core.models import (
     Story, StoryTranslation, MenuItem, MenuItemTranslation, MenuItemImage, MenuItemAttribute,
     MenuItemCategory, MenuItemCategoryTranslation,
-    HeroImage, HeroSettings, Settings, Order, OrderItem, InstagramPost, Translation,
+    HeroImage, HeroButton, HeroButtonTranslation, HeroSettings, Settings, Order, OrderItem, InstagramPost, Translation,
     ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation,
     Customer, Cart, CartItem, Favorite, DeliverySettings
 )
@@ -398,6 +398,53 @@ class HeroImageSerializer(serializers.ModelSerializer):
         
         # Fallback на URL
         return obj.image_url if obj.image_url else None
+
+
+class HeroButtonTranslationSerializer(serializers.ModelSerializer):
+    """Сериализатор для переводов кнопок Hero."""
+    
+    class Meta:
+        model = HeroButtonTranslation
+        fields = ['locale', 'text']
+
+
+class HeroButtonSerializer(serializers.ModelSerializer):
+    """Сериализатор для кнопок Hero."""
+    translations = HeroButtonTranslationSerializer(many=True, read_only=True)
+    text = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = HeroButton
+        fields = ['id', 'order', 'url', 'style', 'active', 'open_in_new_tab', 'translations', 'text', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_text(self, obj):
+        """Возвращает текст кнопки для текущей локали."""
+        request = self.context.get('request')
+        locale = 'ru'  # По умолчанию
+        
+        if request:
+            # Пробуем получить локаль из query параметра
+            locale = request.query_params.get('locale', 'ru')
+            # Или из Accept-Language заголовка
+            if locale == 'ru':
+                accept_language = request.META.get('HTTP_ACCEPT_LANGUAGE', '')
+                if 'es' in accept_language.lower():
+                    locale = 'es'
+                elif 'en' in accept_language.lower():
+                    locale = 'en'
+        
+        # Ищем перевод для указанной локали
+        translation = obj.translations.filter(locale=locale).first()
+        if translation:
+            return translation.text
+        
+        # Fallback на первый доступный перевод
+        first_translation = obj.translations.first()
+        if first_translation:
+            return first_translation.text
+        
+        return ''
 
 
 class HeroSettingsSerializer(serializers.ModelSerializer):

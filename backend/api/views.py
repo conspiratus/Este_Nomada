@@ -8,13 +8,13 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
 from core.models import (
     Story, MenuItem, MenuItemCategory, Settings, Order, OrderItem, InstagramPost, Translation,
-    HeroImage, HeroSettings, ContentSection, FooterSection, DeliverySettings,
+    HeroImage, HeroButton, HeroSettings, ContentSection, FooterSection, DeliverySettings,
     Customer, Cart, CartItem, Favorite
 )
 from .serializers import (
     StorySerializer, MenuItemSerializer, MenuItemCategorySerializer, SettingsSerializer,
     OrderSerializer, InstagramPostSerializer, TranslationSerializer,
-    HeroImageSerializer, HeroSettingsSerializer, ContentSectionSerializer,
+    HeroImageSerializer, HeroButtonSerializer, HeroSettingsSerializer, ContentSectionSerializer,
     FooterSectionSerializer
 )
 
@@ -468,6 +468,19 @@ class HeroImageViewSet(viewsets.ModelViewSet):
         if self.request.user.is_authenticated:
             return HeroImage.objects.all().order_by('order')
         return HeroImage.objects.filter(active=True).order_by('order')
+
+
+class HeroButtonViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet для кнопок Hero (только чтение для публичного API)."""
+    queryset = HeroButton.objects.filter(active=True).order_by('order')
+    serializer_class = HeroButtonSerializer
+    permission_classes = [AllowAny]
+    
+    def get_queryset(self):
+        """Фильтрация для админки."""
+        if self.request.user.is_authenticated:
+            return HeroButton.objects.all().order_by('order')
+        return HeroButton.objects.filter(active=True).order_by('order')
 
 
 class HeroSettingsViewSet(viewsets.ReadOnlyModelViewSet):

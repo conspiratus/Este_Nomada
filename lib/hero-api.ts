@@ -14,6 +14,24 @@ export interface HeroImage {
 
 export type TransitionEffect = 'crossfade' | 'fade' | 'slide';
 
+export type ButtonStyle = 'primary' | 'secondary' | 'outline' | 'ghost';
+
+export interface HeroButton {
+  id: number;
+  order: number;
+  url: string;
+  style: ButtonStyle;
+  active: boolean;
+  open_in_new_tab: boolean;
+  text: string; // Текст для текущей локали
+  translations?: Array<{
+    locale: string;
+    text: string;
+  }>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface HeroSettings {
   slide_interval: number;
   transition_effect: TransitionEffect;
@@ -47,6 +65,39 @@ export async function getHeroImages(): Promise<HeroImage[]> {
     return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('[Hero API] Error fetching hero images:', error);
+    return [];
+  }
+}
+
+/**
+ * Получает кнопки Hero из Django API.
+ */
+export async function getHeroButtons(locale?: string): Promise<HeroButton[]> {
+  try {
+    const url = locale 
+      ? `${API_URL}/hero/buttons/?locale=${locale}`
+      : `${API_URL}/hero/buttons/`;
+    
+    const response = await fetch(url, {
+      cache: 'default', // Браузер сам кеширует
+    });
+
+    if (!response.ok) {
+      console.error('[Hero API] Error fetching buttons:', response.status);
+      return [];
+    }
+
+    const data = await response.json();
+    
+    // Если это пагинация DRF
+    if (data.results) {
+      return data.results;
+    }
+    
+    // Если это просто массив
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('[Hero API] Error fetching hero buttons:', error);
     return [];
   }
 }

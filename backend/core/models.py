@@ -343,6 +343,98 @@ class HeroImage(models.Model):
         return f'Hero изображение {self.order}'
 
 
+class HeroButton(models.Model):
+    """Кнопки для Hero секции."""
+    
+    STYLE_CHOICES = [
+        ('primary', 'Основная (Primary) - Залитая кнопка'),
+        ('secondary', 'Вторичная (Secondary) - С рамкой'),
+        ('outline', 'Контурная (Outline) - Прозрачная с рамкой'),
+        ('ghost', 'Призрачная (Ghost) - Без рамки'),
+    ]
+    
+    order = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name='Порядок отображения',
+        help_text='Чем меньше число, тем раньше кнопка отображается'
+    )
+    url = models.CharField(
+        max_length=500,
+        verbose_name='URL ссылки',
+        help_text='Может быть относительным (/ru/stories) или абсолютным (https://t.me/este_nomada)'
+    )
+    style = models.CharField(
+        max_length=20,
+        choices=STYLE_CHOICES,
+        default='primary',
+        verbose_name='Стиль кнопки',
+        help_text='Визуальный стиль кнопки'
+    )
+    active = models.BooleanField(
+        default=True,
+        verbose_name='Активна',
+        help_text='Показывать ли кнопку на сайте'
+    )
+    open_in_new_tab = models.BooleanField(
+        default=False,
+        verbose_name='Открывать в новой вкладке',
+        help_text='Добавляет target="_blank" к ссылке'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'hero_buttons'
+        verbose_name = 'Кнопка Hero'
+        verbose_name_plural = 'Кнопки Hero'
+        ordering = ['order', 'created_at']
+        indexes = [
+            models.Index(fields=['active', 'order']),
+        ]
+        app_label = 'core'
+
+    def __str__(self):
+        return f'Кнопка Hero #{self.order} ({self.get_style_display()})'
+    
+    def get_translation(self, locale: str):
+        """Получить перевод для указанной локали."""
+        try:
+            return self.translations.get(locale=locale)
+        except HeroButtonTranslation.DoesNotExist:
+            return None
+
+
+class HeroButtonTranslation(models.Model):
+    """Переводы для кнопок Hero."""
+    button = models.ForeignKey(
+        HeroButton,
+        related_name='translations',
+        on_delete=models.CASCADE,
+        verbose_name='Кнопка'
+    )
+    locale = models.CharField(max_length=10, verbose_name='Локаль')
+    text = models.CharField(
+        max_length=255,
+        verbose_name='Текст кнопки',
+        help_text='Текст, который будет отображаться на кнопке'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'hero_button_translations'
+        verbose_name = 'Перевод кнопки Hero'
+        verbose_name_plural = 'Переводы кнопок Hero'
+        unique_together = [['button', 'locale']]
+        indexes = [
+            models.Index(fields=['button', 'locale']),
+        ]
+
+    def __str__(self):
+        return f'{self.text} ({self.locale})'
+
+
 class HeroSettings(models.Model):
     """Настройки Hero секции."""
     
