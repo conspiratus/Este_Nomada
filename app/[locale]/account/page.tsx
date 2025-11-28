@@ -175,9 +175,10 @@ export default function AccountPage() {
           setOrders([]);
         }
       } else if (authResponse.status === 401) {
-        // Если получили 401, токен невалидный или истек - очищаем
-        console.log('[Account] Got 401, clearing tokens');
-        clearTokens();
+        // Если получили 401, токен невалидный или истек
+        // НЕ очищаем токены сразу - возможно это временная ошибка
+        // Токены уже попытались обновиться в fetchWithAuth
+        console.log('[Account] Got 401, but NOT clearing tokens - may be temporary error');
         setIsAuthenticated(false);
         setCustomer(null);
         setOrders([]);

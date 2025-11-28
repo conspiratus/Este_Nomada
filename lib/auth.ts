@@ -125,8 +125,10 @@ export async function fetchWithAuth(
 
   // Если получили 401, пытаемся обновить токен
   if (response.status === 401 && token) {
+    console.log('[Auth] Got 401, attempting to refresh token');
     const newToken = await refreshAccessToken();
     if (newToken) {
+      console.log('[Auth] Token refreshed successfully, retrying request');
       // Повторяем запрос с новым токеном
       (headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`;
       response = await fetch(url, {
@@ -134,9 +136,11 @@ export async function fetchWithAuth(
         headers,
         credentials: 'include',
       });
+      console.log('[Auth] Retry response status:', response.status);
     } else {
-      // Если не удалось обновить токен, возвращаем 401
-      // Токены уже очищены в refreshAccessToken
+      console.log('[Auth] Failed to refresh token, but NOT clearing tokens');
+      // НЕ очищаем токены - пусть пользователь остается залогиненным
+      // Возможно это временная ошибка сети
       return response;
     }
   }
