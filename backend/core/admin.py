@@ -6,6 +6,7 @@ from django.contrib.auth.admin import UserAdmin
 from django import forms
 from django.db import models
 from django.utils.html import format_html
+from django.contrib.admin import AdminSite
 from .models import (
     Story, StoryTranslation, MenuItem, MenuItemTranslation, MenuItemImage, MenuItemAttribute,
     HeroImage, HeroSettings, Settings, Order, OrderItem, InstagramPost, Translation,
@@ -15,6 +16,11 @@ from .models import (
 
 # Стандартная модель User уже зарегистрирована в Django Admin
 
+
+# ============================================
+# ГРУППА: КОНТЕНТ САЙТА
+# ============================================
+# Включает: Истории, Блюда меню, Разделы контента, Секции футера
 
 class StoryForm(forms.ModelForm):
     """Форма для историй с поддержкой Markdown."""
@@ -174,6 +180,7 @@ class MenuItemAdminForm(forms.ModelForm):
 
 @admin.register(MenuItem)
 class MenuItemAdmin(admin.ModelAdmin):
+    """Админка для блюд меню - Контент сайта."""
     """Админка для блюд меню."""
     form = MenuItemAdminForm
     list_display = ['name', 'category', 'price', 'order', 'active', 'created_at']
@@ -205,8 +212,9 @@ class MenuItemAdmin(admin.ModelAdmin):
 
 
 # ============================================
-# ГРУППА: HERO КАРУСЕЛЬ
+# ГРУППА: ГЛАВНАЯ СТРАНИЦА (HERO КАРУСЕЛЬ)
 # ============================================
+# Включает: Изображения для карусели, Настройки карусели
 class HeroImageAdmin(admin.ModelAdmin):
     """Админка для Hero изображений."""
     list_display = ['id', 'order', 'image_preview', 'image_info', 'image_url', 'active', 'created_at']
@@ -279,6 +287,11 @@ admin.site.register(HeroImage, HeroImageAdmin)
 admin.site.register(HeroSettings, HeroSettingsAdmin)
 
 
+# ============================================
+# ГРУППА: НАСТРОЙКИ САЙТА
+# ============================================
+# Включает: Основные настройки сайта, Переводы интерфейса
+
 @admin.register(Settings)
 class SettingsAdmin(admin.ModelAdmin):
     """Админка для настроек сайта."""
@@ -342,6 +355,11 @@ class OrderItemInline(admin.TabularInline):
     readonly_fields = ['menu_item']
 
 
+# ============================================
+# ГРУППА: ЗАКАЗЫ
+# ============================================
+# Включает: Заказы, Элементы заказов
+
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     """Админка для заказов."""
@@ -402,6 +420,11 @@ class OrderAdmin(admin.ModelAdmin):
     total_display.short_description = 'Общая стоимость'
 
 
+# ============================================
+# ГРУППА: ИНТЕГРАЦИИ
+# ============================================
+# Включает: Instagram посты
+
 @admin.register(InstagramPost)
 class InstagramPostAdmin(admin.ModelAdmin):
     """Админка для Instagram постов."""
@@ -413,7 +436,7 @@ class InstagramPostAdmin(admin.ModelAdmin):
 
 @admin.register(Translation)
 class TranslationAdmin(admin.ModelAdmin):
-    """Админка для переводов."""
+    """Админка для переводов - Настройки сайта."""
     list_display = ['locale', 'namespace', 'key', 'value', 'updated_at']
     list_filter = ['locale', 'namespace', 'updated_at']
     search_fields = ['key', 'value', 'namespace']
@@ -428,6 +451,10 @@ class TranslationAdmin(admin.ModelAdmin):
         }),
     )
 
+
+# ============================================
+# ГРУППА: КОНТЕНТ САЙТА (продолжение)
+# ============================================
 
 class ContentSectionTranslationForm(forms.ModelForm):
     """Форма для переводов разделов контента с поддержкой HTML в описании."""
@@ -564,7 +591,7 @@ class FooterSectionTranslationInline(admin.TabularInline):
 
 @admin.register(FooterSection)
 class FooterSectionAdmin(admin.ModelAdmin):
-    """Админка для секций футера."""
+    """Админка для секций футера - Контент сайта."""
     form = FooterSectionAdminForm
     list_display = ['title', 'position', 'text_align', 'order', 'published', 'created_at']
     list_filter = ['position', 'text_align', 'published', 'created_at']
@@ -591,8 +618,9 @@ class FooterSectionAdmin(admin.ModelAdmin):
 
 
 # ============================================
-# ГРУППА: ТТК БЛЮД
+# ГРУППА: ТТК БЛЮД (ТЕХНИКО-ТЕХНОЛОГИЧЕСКИЕ КАРТЫ)
 # ============================================
+# Включает: ТТК блюд, История версий ТТК
 class DishTTKAdminForm(forms.ModelForm):
     """Форма для админки ТТК с валидацией файла."""
     
@@ -692,8 +720,9 @@ class TTKVersionHistoryAdmin(admin.ModelAdmin):
 
 
 # ============================================
-# ЛИЧНЫЙ КАБИНЕТ И КОРЗИНА
+# ГРУППА: ЛИЧНЫЙ КАБИНЕТ И КОРЗИНА
 # ============================================
+# Включает: Клиенты, Корзины, Избранное, Настройки доставки
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
