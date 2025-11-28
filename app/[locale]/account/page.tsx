@@ -114,7 +114,7 @@ export default function AccountPage() {
           setIsAuthenticated(true);
           
           // Загружаем заказы
-          const ordersResponse = await fetchWithAuth(`${API_BASE_URL}/orders/my_orders/?locale=${locale}`);
+          const ordersResponse = await fetchWithAuth(`${API_BASE_URL}/orders/my_orders/`);
           
           if (ordersResponse.ok) {
             const ordersData = await ordersResponse.json();
@@ -211,7 +211,7 @@ export default function AccountPage() {
           setLoading(false); // Убираем состояние загрузки
           
           // Загружаем заказы
-          const ordersResponse = await fetchWithAuth(`${API_BASE_URL}/orders/my_orders/?locale=${locale}`);
+          const ordersResponse = await fetchWithAuth(`${API_BASE_URL}/orders/my_orders/`);
           if (ordersResponse.ok) {
             const ordersData = await ordersResponse.json();
             setOrders(ordersData);
@@ -282,7 +282,7 @@ export default function AccountPage() {
           setRegistrationSuccess(true);
           
           // Загружаем заказы
-          const ordersResponse = await fetchWithAuth(`${API_BASE_URL}/orders/my_orders/?locale=${locale}`);
+          const ordersResponse = await fetchWithAuth(`${API_BASE_URL}/orders/my_orders/`);
           if (ordersResponse.ok) {
             const ordersData = await ordersResponse.json();
             setOrders(ordersData);
