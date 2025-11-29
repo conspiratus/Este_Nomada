@@ -293,19 +293,14 @@ class OrderViewSet(viewsets.ModelViewSet):
                     email_verified=False
                 )
         else:
-            # Для неавторизованных ищем customer по email, но НЕ создаем новый
+            # Для неавторизованных ищем customer по email
             # Запрещаем создание нового customer с существующим email
             email = data.get('email')
             if email:
+                # Ищем customer по email (включая зарегистрированных)
                 customer = Customer.objects.filter(email=email).first()
-                # Если customer не найден, создаем только если email уникален
                 if not customer:
-                    # Проверяем, нет ли уже customer с таким email (даже зарегистрированного)
-                    if Customer.objects.filter(email=email).exists():
-                        return Response(
-                            {'error': 'Пользователь с таким email уже существует. Пожалуйста, войдите в систему.'},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
+                    # Создаем новый customer только если email уникален
                     customer = Customer.objects.create(
                         email=email,
                         phone=data.get('phone', ''),
@@ -313,6 +308,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                         is_registered=False,
                         email_verified=False
                     )
+                # Если customer найден, но он зарегистрирован, предлагаем войти
+                elif customer.is_registered and not customer.user:
+                    # Это странная ситуация, но на всякий случай
+                    pass
         
         if customer:
             data['customer'] = customer.id
