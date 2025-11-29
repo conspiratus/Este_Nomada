@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
 from core.models import (
-    Story, MenuItem, MenuItemCategory, Settings, Order, OrderItem, InstagramPost, Translation,
+    Story, MenuItem, MenuItemCategory, Settings, Order, OrderItem, OrderReview, InstagramPost, Translation,
     HeroImage, HeroButton, HeroSettings, ContentSection, FooterSection, DeliverySettings,
     Customer, Cart, CartItem, Favorite
 )
@@ -414,6 +414,67 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def add_review(self, request, pk=None):
+        """Создать отзыв на заказ."""
+        order = self.get_object()
+        
+        # Проверяем, что заказ принадлежит текущему пользователю
+        if request.user.is_authenticated:
+            customer = Customer.objects.filter(user=request.user).first()
+            if not customer or order.customer != customer:
+                return Response(
+                    {'error': 'Вы можете оставить отзыв только на свои заказы'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        # Проверяем, что заказ завершен или отменен
+        if order.status not in ['completed', 'cancelled']:
+            return Response(
+                {'error': 'Отзыв можно оставить только для завершенных или отмененных заказов'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Проверяем, что отзыв еще не оставлен
+        if hasattr(order, 'review'):
+            return Response(
+                {'error': 'Отзыв на этот заказ уже оставлен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Валидация данных
+        rating = request.data.get('rating')
+        comment = request.data.get('comment', '')
+        
+        if not rating:
+            return Response(
+                {'error': 'Оценка обязательна'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            rating = int(rating)
+            if rating < 1 or rating > 5:
+                return Response(
+                    {'error': 'Оценка должна быть от 1 до 5'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'Оценка должна быть числом от 1 до 5'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Создаем отзыв
+        review = OrderReview.objects.create(
+            order=order,
+            rating=rating,
+            comment=comment
+        )
+        
+        serializer = OrderReviewSerializer(review, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class InstagramPostViewSet(viewsets.ReadOnlyModelViewSet):
@@ -593,7 +654,7 @@ from django.conf import settings as django_settings
 import secrets
 from .serializers import (
     CustomerSerializer, CartSerializer, CartItemDetailSerializer,
-    FavoriteSerializer, DeliverySettingsSerializer
+    FavoriteSerializer, DeliverySettingsSerializer, OrderReviewSerializer
 )
 
 User = get_user_model()

@@ -143,7 +143,15 @@
       "processing": "En Proceso",
       "completed": "Completado",
       "cancelled": "Cancelado"
-    }
+    },
+    "review": "Reseña",
+    "leaveReview": "Dejar Reseña",
+    "viewReview": "Ver Reseña",
+    "rating": "Calificación",
+    "reviewPlaceholder": "Deja tu reseña sobre el pedido...",
+    "submitReview": "Enviar Reseña",
+    "submitting": "Enviando...",
+    "cancel": "Cancelar"
   },
   "verifyEmail": {
     "verifying": "Verificando Email",

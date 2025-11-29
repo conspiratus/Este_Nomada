@@ -143,7 +143,15 @@
       "processing": "Processing",
       "completed": "Completed",
       "cancelled": "Cancelled"
-    }
+    },
+    "review": "Review",
+    "leaveReview": "Leave Review",
+    "viewReview": "View Review",
+    "rating": "Rating",
+    "reviewPlaceholder": "Leave your review about the order...",
+    "submitReview": "Submit Review",
+    "submitting": "Submitting...",
+    "cancel": "Cancel"
   },
   "verifyEmail": {
     "verifying": "Verifying Email",

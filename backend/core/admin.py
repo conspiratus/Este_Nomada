@@ -11,7 +11,7 @@ from django.apps import apps
 from .models import (
     Story, StoryTranslation, MenuItem, MenuItemTranslation, MenuItemImage, MenuItemAttribute,
     MenuItemCategory, MenuItemCategoryTranslation,
-    HeroImage, HeroButton, HeroButtonTranslation, HeroSettings, Settings, Order, OrderItem, InstagramPost, Translation,
+    HeroImage, HeroButton, HeroButtonTranslation, HeroSettings, Settings, Order, OrderItem, OrderReview, InstagramPost, Translation,
     ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation,
     DishTTK, TTKVersionHistory, Customer, Cart, CartItem, Favorite, DeliverySettings
 )
@@ -684,6 +684,26 @@ class OrderAdmin(admin.ModelAdmin):
     total_display.short_description = 'Общая стоимость'
 
 
+class OrderReviewAdmin(admin.ModelAdmin):
+    """Админка для отзывов на заказы."""
+    list_display = ['id', 'order', 'rating', 'created_at']
+    list_filter = ['rating', 'created_at']
+    search_fields = ['order__id', 'comment']
+    readonly_fields = ['created_at', 'updated_at']
+    fieldsets = (
+        ('Заказ', {
+            'fields': ('order',)
+        }),
+        ('Отзыв', {
+            'fields': ('rating', 'comment')
+        }),
+        ('Даты', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
 # ============================================
 # ГРУППА: ИНТЕГРАЦИИ
 # ============================================
@@ -1115,6 +1135,7 @@ custom_admin_site.register(HeroButton, HeroButtonAdmin)
 custom_admin_site.register(HeroSettings, HeroSettingsAdmin)
 custom_admin_site.register(Settings, SettingsAdmin)
 custom_admin_site.register(Order, OrderAdmin)
+custom_admin_site.register(OrderReview, OrderReviewAdmin)
 custom_admin_site.register(InstagramPost, InstagramPostAdmin)
 custom_admin_site.register(Translation, TranslationAdmin)
 custom_admin_site.register(ContentSection, ContentSectionAdmin)

@@ -6,7 +6,7 @@ import markdown
 from core.models import (
     Story, StoryTranslation, MenuItem, MenuItemTranslation, MenuItemImage, MenuItemAttribute,
     MenuItemCategory, MenuItemCategoryTranslation,
-    HeroImage, HeroButton, HeroButtonTranslation, HeroSettings, Settings, Order, OrderItem, InstagramPost, Translation,
+    HeroImage, HeroButton, HeroButtonTranslation, HeroSettings, Settings, Order, OrderItem, OrderReview, InstagramPost, Translation,
     ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation,
     Customer, Cart, CartItem, Favorite, DeliverySettings
 )
@@ -291,6 +291,14 @@ class OrderItemSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 
+class OrderReviewSerializer(serializers.ModelSerializer):
+    """Сериализатор для отзывов на заказы."""
+    class Meta:
+        model = OrderReview
+        fields = ['id', 'rating', 'comment', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
 class OrderSerializer(serializers.ModelSerializer):
     """Сериализатор для заказов."""
     order_items = OrderItemSerializer(many=True, read_only=True)
@@ -303,6 +311,8 @@ class OrderSerializer(serializers.ModelSerializer):
     email_display = serializers.SerializerMethodField()
     phone_display = serializers.SerializerMethodField()
     total = serializers.SerializerMethodField()
+    review = OrderReviewSerializer(read_only=True)
+    can_review = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
@@ -310,13 +320,20 @@ class OrderSerializer(serializers.ModelSerializer):
             'id', 'customer', 'name', 'email', 'email_display', 'phone', 'phone_display',
             'is_pickup', 'postal_code', 'address', 'delivery_cost', 'delivery_distance',
             'comment', 'status', 'ai_response', 'order_items', 'selected_dishes',
-            'total', 'created_at', 'updated_at'
+            'total', 'created_at', 'updated_at', 'review', 'can_review'
         ]
         read_only_fields = ['id', 'status', 'ai_response', 'created_at', 'updated_at']
         extra_kwargs = {
             'email': {'write_only': True},
             'phone': {'write_only': True},
         }
+    
+    def get_can_review(self, obj):
+        """Проверяет, может ли пользователь оставить отзыв на этот заказ."""
+        # Можно оставить отзыв только для завершенных или отмененных заказов
+        # Проверяем, есть ли уже отзыв
+        has_review = hasattr(obj, 'review') and obj.review is not None
+        return obj.status in ['completed', 'cancelled'] and not has_review
     
     def get_email_display(self, obj):
         """Получить маскированный email для отображения."""

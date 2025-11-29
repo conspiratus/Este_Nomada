@@ -4,7 +4,7 @@ Core models for Este Nómada project.
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.text import slugify
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from cryptography.fernet import Fernet
 from django.conf import settings as django_settings
 import base64
@@ -602,6 +602,42 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f'{self.menu_item.name} x{self.quantity}'
+
+
+class OrderReview(models.Model):
+    """Модель для отзывов на заказы."""
+    order = models.OneToOneField(
+        Order,
+        on_delete=models.CASCADE,
+        related_name='review',
+        verbose_name='Заказ'
+    )
+    rating = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        verbose_name='Оценка (1-5)',
+        help_text='Оценка от 1 до 5 звезд'
+    )
+    comment = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='Комментарий',
+        help_text='Текстовый отзыв о заказе'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+
+    class Meta:
+        db_table = 'order_reviews'
+        verbose_name = 'Отзыв на заказ'
+        verbose_name_plural = 'Отзывы на заказы'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['order']),
+            models.Index(fields=['rating']),
+        ]
+
+    def __str__(self):
+        return f'Отзыв на заказ #{self.order.id} - {self.rating} звезд'
 
 
 class InstagramPost(models.Model):

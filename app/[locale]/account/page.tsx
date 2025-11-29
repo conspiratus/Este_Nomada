@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useTranslations, useLocale } from 'next-intl';
 import { motion } from "framer-motion";
 import { getApiUrl } from '@/lib/get-api-url';
-import { Package, Clock, CheckCircle, XCircle, User, Mail, Phone, MapPin } from 'lucide-react';
+import { Package, Clock, CheckCircle, XCircle, User, Mail, Phone, MapPin, X } from 'lucide-react';
+import StarRating from '@/components/StarRating';
 import { useRouter } from 'next/navigation';
 import { saveTokens, fetchWithAuth, hasToken, getAccessToken, clearTokens } from '@/lib/auth';
 
@@ -16,6 +17,14 @@ interface OrderItem {
     price: string;
   };
   quantity: number;
+}
+
+interface OrderReview {
+  id: number;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Order {
@@ -34,6 +43,8 @@ interface Order {
   total: string;
   created_at: string;
   updated_at: string;
+  review?: OrderReview | null;
+  can_review?: boolean;
 }
 
 interface Customer {
@@ -70,6 +81,11 @@ export default function AccountPage() {
   const [registrationError, setRegistrationError] = useState<string | null>(null);
   const [registering, setRegistering] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   const API_BASE_URL = getApiUrl();
 
@@ -238,6 +254,57 @@ export default function AccountPage() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const handleOpenReviewModal = (order: Order) => {
+    setSelectedOrder(order);
+    if (order.review) {
+      setReviewRating(order.review.rating);
+      setReviewComment(order.review.comment || '');
+    } else {
+      setReviewRating(0);
+      setReviewComment('');
+    }
+    setShowReviewModal(true);
+  };
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrder || reviewRating === 0) {
+      return;
+    }
+
+    setSubmittingReview(true);
+    try {
+      const response = await fetchWithAuth(
+        `${API_BASE_URL}/orders/${selectedOrder.id}/add_review/`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rating: reviewRating,
+            comment: reviewComment,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        // Обновляем список заказов
+        await loadAccountData();
+        setShowReviewModal(false);
+        setSelectedOrder(null);
+        setReviewRating(0);
+        setReviewComment('');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Ошибка при отправке отзыва');
+      }
+    } catch (err) {
+      console.error("Error submitting review:", err);
+      alert('Ошибка при отправке отзыва');
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -762,6 +829,50 @@ export default function AccountPage() {
                               </p>
                             </div>
                           )}
+
+                          {/* Отзыв и оценка */}
+                          {(order.can_review || order.review) && (
+                            <div className="mt-4 pt-4 border-t border-warm-200">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  {order.review ? (
+                                    <div>
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <span className="text-sm font-medium text-charcoal-700">
+                                          {t('review') || 'Отзыв оставлен'}:
+                                        </span>
+                                        <StarRating rating={order.review.rating} readonly size={20} />
+                                      </div>
+                                      {order.review.comment && (
+                                        <p className="text-sm text-charcoal-600 mt-1">
+                                          {order.review.comment}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleOpenReviewModal(order)}
+                                      className="text-sm text-saffron-600 hover:text-saffron-700 font-medium"
+                                    >
+                                      {t('leaveReview') || 'Оставить отзыв'}
+                                    </button>
+                                  )}
+                                </div>
+                                {order.can_review && !order.review && (
+                                  <div className="ml-4">
+                                    <StarRating
+                                      rating={0}
+                                      onRatingChange={(rating) => {
+                                        setReviewRating(rating);
+                                        handleOpenReviewModal(order);
+                                      }}
+                                      size={20}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </motion.div>
                     ))}
@@ -772,6 +883,128 @@ export default function AccountPage() {
           </div>
         </motion.div>
       </div>
+
+      {/* Модальное окно для отзыва */}
+      {showReviewModal && selectedOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-charcoal-900">
+                  {selectedOrder.review
+                    ? t('viewReview') || 'Просмотр отзыва'
+                    : t('leaveReview') || 'Оставить отзыв'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowReviewModal(false);
+                    setSelectedOrder(null);
+                    setReviewRating(0);
+                    setReviewComment('');
+                  }}
+                  className="text-charcoal-400 hover:text-charcoal-600"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              {/* Информация о заказе */}
+              <div className="mb-6 p-4 bg-sand-50 rounded-lg">
+                <h4 className="font-semibold text-charcoal-900 mb-2">
+                  {t('order')} #{selectedOrder.id}
+                </h4>
+                <p className="text-sm text-charcoal-600">
+                  {formatDate(selectedOrder.created_at)}
+                </p>
+                <div className="mt-2 space-y-1">
+                  {selectedOrder.order_items.map((item) => (
+                    <div key={item.id} className="text-sm text-charcoal-700">
+                      {item.menu_item.name} × {item.quantity}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {selectedOrder.review ? (
+                // Просмотр существующего отзыва
+                <div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-charcoal-700 mb-2">
+                      {t('rating') || 'Оценка'}:
+                    </label>
+                    <StarRating rating={selectedOrder.review.rating} readonly size={32} />
+                  </div>
+                  {selectedOrder.review.comment && (
+                    <div>
+                      <label className="block text-sm font-medium text-charcoal-700 mb-2">
+                        {t('comment') || 'Комментарий'}:
+                      </label>
+                      <p className="text-charcoal-600 bg-sand-50 p-4 rounded-lg">
+                        {selectedOrder.review.comment}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Форма создания отзыва
+                <form onSubmit={handleSubmitReview}>
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-charcoal-700 mb-3">
+                      {t('rating') || 'Оценка'} *:
+                    </label>
+                    <StarRating
+                      rating={reviewRating}
+                      onRatingChange={setReviewRating}
+                      size={32}
+                    />
+                  </div>
+
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-charcoal-700 mb-2">
+                      {t('comment') || 'Комментарий'}:
+                    </label>
+                    <textarea
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      rows={4}
+                      className="w-full px-4 py-3 rounded-lg border border-warm-300 focus:ring-2 focus:ring-saffron-500 focus:border-transparent outline-none"
+                      placeholder={t('reviewPlaceholder') || 'Оставьте ваш отзыв о заказе...'}
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="submit"
+                      disabled={reviewRating === 0 || submittingReview}
+                      className="flex-1 px-6 py-3 bg-saffron-500 text-white rounded-full hover:bg-saffron-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {submittingReview
+                        ? t('submitting') || 'Отправка...'
+                        : t('submitReview') || 'Отправить отзыв'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowReviewModal(false);
+                        setSelectedOrder(null);
+                        setReviewRating(0);
+                        setReviewComment('');
+                      }}
+                      className="px-6 py-3 border border-warm-300 text-charcoal-700 rounded-full hover:bg-warm-50 transition-colors font-medium"
+                    >
+                      {t('cancel') || 'Отмена'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

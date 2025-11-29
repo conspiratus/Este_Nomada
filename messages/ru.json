@@ -143,7 +143,15 @@
       "processing": "Обрабатывается",
       "completed": "Завершен",
       "cancelled": "Отменен"
-    }
+    },
+    "review": "Отзыв",
+    "leaveReview": "Оставить отзыв",
+    "viewReview": "Просмотр отзыва",
+    "rating": "Оценка",
+    "reviewPlaceholder": "Оставьте ваш отзыв о заказе...",
+    "submitReview": "Отправить отзыв",
+    "submitting": "Отправка...",
+    "cancel": "Отмена"
   },
   "verifyEmail": {
     "verifying": "Подтверждение email",
