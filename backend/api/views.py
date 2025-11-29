@@ -617,6 +617,27 @@ class CustomerViewSet(viewsets.ModelViewSet):
             return Customer.objects.all()
         return Customer.objects.filter(user=self.request.user)
     
+    def list(self, request, *args, **kwargs):
+        """Возвращает профиль текущего пользователя (или создает, если не существует)."""
+        # Получаем или создаем Customer для текущего пользователя
+        customer = Customer.objects.filter(user=request.user).first()
+        
+        if not customer:
+            # Если Customer не существует, создаем его
+            # Используем email из User, если он есть
+            user_email = request.user.email if request.user.email else ''
+            customer = Customer.objects.create(
+                user=request.user,
+                email=user_email,
+                phone='',
+                is_registered=True,
+                email_verified=False
+            )
+        
+        serializer = self.get_serializer(customer, context={'request': request})
+        # Возвращаем как массив для совместимости с фронтендом
+        return Response([serializer.data])
+    
     @action(detail=False, methods=['post'])
     def register(self, request):
         """Регистрация нового клиента."""
