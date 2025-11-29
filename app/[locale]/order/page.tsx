@@ -55,6 +55,7 @@ export default function OrderPage() {
     email: string;
     phone: string;
   } | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const API_BASE_URL = getApiUrl();
 
@@ -147,12 +148,19 @@ export default function OrderPage() {
             postal_code: customer.postal_code || prev.postal_code,
             address: customer.address || prev.address,
           }));
+          
+          // Пользователь авторизован - блокируем поля имени и email
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
         }
       } else {
         console.log('[Order] Failed to load customer data:', response.status);
+        setIsAuthenticated(false);
       }
     } catch (err) {
       console.error("[Order] Error loading customer data:", err);
+      setIsAuthenticated(false);
     }
   };
 
@@ -618,7 +626,11 @@ export default function OrderPage() {
                       required
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-3 rounded-lg border border-warm-300 focus:ring-2 focus:ring-saffron-500 focus:border-transparent outline-none"
+                      readOnly={isAuthenticated}
+                      disabled={isAuthenticated}
+                      className={`w-full px-4 py-3 rounded-lg border border-warm-300 focus:ring-2 focus:ring-saffron-500 focus:border-transparent outline-none ${
+                        isAuthenticated ? 'bg-gray-100 cursor-not-allowed opacity-75' : ''
+                      }`}
                       placeholder={t('namePlaceholder')}
                     />
                   </div>
@@ -633,7 +645,11 @@ export default function OrderPage() {
                       required
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-4 py-3 rounded-lg border border-warm-300 focus:ring-2 focus:ring-saffron-500 focus:border-transparent outline-none"
+                      readOnly={isAuthenticated}
+                      disabled={isAuthenticated}
+                      className={`w-full px-4 py-3 rounded-lg border border-warm-300 focus:ring-2 focus:ring-saffron-500 focus:border-transparent outline-none ${
+                        isAuthenticated ? 'bg-gray-100 cursor-not-allowed opacity-75' : ''
+                      }`}
                       placeholder={t('emailPlaceholder')}
                     />
                   </div>
