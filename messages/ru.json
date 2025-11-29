@@ -97,7 +97,8 @@
     "lowStock": "Осталось",
     "insufficientStock": "Недостаточно остатка",
     "errorAddingToCart": "Ошибка при добавлении в корзину",
-    "errorUpdatingCart": "Ошибка при обновлении корзины"
+    "errorUpdatingCart": "Ошибка при обновлении корзины",
+    "outOfStock": "Нет в наличии"
   },
   "account": {
     "title": "Личный кабинет",

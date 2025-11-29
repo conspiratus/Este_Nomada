@@ -97,7 +97,8 @@
     "lowStock": "Left",
     "insufficientStock": "Insufficient stock",
     "errorAddingToCart": "Error adding to cart",
-    "errorUpdatingCart": "Error updating cart"
+    "errorUpdatingCart": "Error updating cart",
+    "outOfStock": "Out of stock"
   },
   "account": {
     "title": "Personal Account",

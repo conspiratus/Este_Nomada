@@ -449,6 +449,9 @@ export default function OrderPage() {
                             const cartItem = cart.find(ci => ci.menu_item.id === item.id);
                             const quantity = cartItem?.quantity || 0;
                             
+                            // Проверяем, закончилось ли блюдо
+                            const isOutOfStock = item.stock_quantity !== null && item.stock_quantity === 0;
+                            
                             // Получаем изображение: первое из images или из image поля
                             const itemImage = item.images && item.images.length > 0 
                               ? item.images[0].image_url 
@@ -460,10 +463,21 @@ export default function OrderPage() {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.3 }}
-                                className="bg-white border border-warm-200 rounded-lg overflow-hidden hover:shadow-lg transition-all cursor-pointer"
-                                onClick={() => setSelectedItem(item)}
+                                className={`bg-white border border-warm-200 rounded-lg overflow-hidden transition-all relative ${
+                                  isOutOfStock ? 'cursor-not-allowed' : 'hover:shadow-lg cursor-pointer'
+                                }`}
+                                onClick={() => !isOutOfStock && setSelectedItem(item)}
                               >
-                                <div className="relative h-48 bg-sand-100">
+                                {/* Overlay для закончившихся блюд */}
+                                {isOutOfStock && (
+                                  <div className="absolute inset-0 bg-gray-500 bg-opacity-75 z-10 flex items-center justify-center rounded-lg">
+                                    <span className="text-white font-semibold text-lg px-4 py-2 bg-gray-800 bg-opacity-90 rounded-lg">
+                                      {t('outOfStock') || 'Нет в наличии'}
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                <div className={`relative h-48 bg-sand-100 ${isOutOfStock ? 'opacity-50' : ''}`}>
                                   {itemImage ? (
                                     <Image
                                       src={itemImage}
@@ -478,12 +492,12 @@ export default function OrderPage() {
                                     </div>
                                   )}
                                 </div>
-                                <div className="p-4">
+                                <div className={`p-4 ${isOutOfStock ? 'opacity-50' : ''}`}>
                                   <div className="flex items-start justify-between mb-2">
                                     <h4 className="font-semibold text-charcoal-900">
                                       {item.name}
                                     </h4>
-                                    {item.low_stock && item.stock_quantity !== null && (
+                                    {!isOutOfStock && item.low_stock && item.stock_quantity !== null && (
                                       <span className="ml-2 px-2 py-1 text-xs font-semibold bg-orange-100 text-orange-800 rounded-full whitespace-nowrap">
                                         {t('lowStock') || 'Осталось'} {item.stock_quantity}
                                       </span>
@@ -501,35 +515,37 @@ export default function OrderPage() {
                                         {item.price}€
                                       </p>
                                     )}
-                                    <div className="flex items-center space-x-2">
-                                      {quantity > 0 && (
+                                    {!isOutOfStock && (
+                                      <div className="flex items-center space-x-2">
+                                        {quantity > 0 && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              updateCartItem(cartItem!.id, quantity - 1);
+                                            }}
+                                            className="p-1.5 rounded-full bg-saffron-100 text-saffron-700 hover:bg-saffron-200 transition-colors"
+                                            aria-label={t('decreaseQuantity')}
+                                          >
+                                            <Minus className="w-4 h-4" />
+                                          </button>
+                                        )}
+                                        {quantity > 0 && (
+                                          <span className="w-8 text-center font-semibold text-charcoal-900">
+                                            {quantity}
+                                          </span>
+                                        )}
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            updateCartItem(cartItem!.id, quantity - 1);
+                                            addToCart(item.id, 1);
                                           }}
-                                          className="p-1.5 rounded-full bg-saffron-100 text-saffron-700 hover:bg-saffron-200 transition-colors"
-                                          aria-label={t('decreaseQuantity')}
+                                          className="p-1.5 rounded-full bg-saffron-500 text-white hover:bg-saffron-600 transition-colors"
+                                          aria-label={t('addToCart')}
                                         >
-                                          <Minus className="w-4 h-4" />
+                                          <Plus className="w-4 h-4" />
                                         </button>
-                                      )}
-                                      {quantity > 0 && (
-                                        <span className="w-8 text-center font-semibold text-charcoal-900">
-                                          {quantity}
-                                        </span>
-                                      )}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          addToCart(item.id, 1);
-                                        }}
-                                        className="p-1.5 rounded-full bg-saffron-500 text-white hover:bg-saffron-600 transition-colors"
-                                        aria-label={t('addToCart')}
-                                      >
-                                        <Plus className="w-4 h-4" />
-                                      </button>
-                                    </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </motion.div>

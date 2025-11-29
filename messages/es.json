@@ -97,7 +97,8 @@
     "lowStock": "Quedan",
     "insufficientStock": "Stock insuficiente",
     "errorAddingToCart": "Error al agregar al carrito",
-    "errorUpdatingCart": "Error al actualizar el carrito"
+    "errorUpdatingCart": "Error al actualizar el carrito",
+    "outOfStock": "Agotado"
   },
   "account": {
     "title": "Cuenta Personal",
