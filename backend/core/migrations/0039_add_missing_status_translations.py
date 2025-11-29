@@ -15,18 +15,21 @@ def add_status_translations(apps, schema_editor):
         ('ru', 'account', 'status.pending', 'Ожидает обработки'),
         ('ru', 'account', 'status.processing', 'Обрабатывается'),
         ('ru', 'order', 'insufficientStock', 'Недостаточно остатка'),
+        ('ru', 'order', 'outOfStock', 'Нет в наличии'),
         
         # Испанский (es)
         ('es', 'account', 'status.completed', 'Completado'),
         ('es', 'account', 'status.pending', 'Pendiente'),
         ('es', 'account', 'status.processing', 'En Proceso'),
         ('es', 'order', 'insufficientStock', 'Stock insuficiente'),
+        ('es', 'order', 'outOfStock', 'Agotado'),
         
         # Английский (en)
         ('en', 'account', 'status.completed', 'Completed'),
         ('en', 'account', 'status.pending', 'Pending'),
         ('en', 'account', 'status.processing', 'Processing'),
         ('en', 'order', 'insufficientStock', 'Insufficient stock'),
+        ('en', 'order', 'outOfStock', 'Out of stock'),
     ]
     
     created_count = 0
@@ -58,6 +61,10 @@ def reverse_migration(apps, schema_editor):
         'status.completed', 'status.pending', 'status.processing'
     ]
     
+    order_keys_to_remove = [
+        'insufficientStock', 'outOfStock'
+    ]
+    
     locales = ['ru', 'es', 'en']
     
     for locale in locales:
@@ -68,12 +75,13 @@ def reverse_migration(apps, schema_editor):
                 key=key
             ).delete()
         
-        # Удаляем также order.insufficientStock
-        Translation.objects.using(db_alias).filter(
-            locale=locale,
-            namespace='order',
-            key='insufficientStock'
-        ).delete()
+        # Удаляем также order.insufficientStock и order.outOfStock
+        for key in order_keys_to_remove:
+            Translation.objects.using(db_alias).filter(
+                locale=locale,
+                namespace='order',
+                key=key
+            ).delete()
 
 
 class Migration(migrations.Migration):
