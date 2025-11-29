@@ -372,8 +372,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order_item = OrderItem.objects.create(
                     order=order,
                     menu_item=menu_item,
-                    quantity=quantity,
-                    price=menu_item.price or 0
+                    quantity=quantity
                 )
                 if menu_item.price:
                     order_total += float(menu_item.price) * quantity
