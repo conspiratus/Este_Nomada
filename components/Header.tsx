@@ -243,14 +243,12 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
           >
             {t('myAccount') || 'Мой ЛК'}
           </Link>
-          {!isAuthenticated && (
-            <Link
-              href={`/${locale}/order`}
-              className="px-6 py-2 bg-charcoal-700 text-white rounded-full hover:bg-charcoal-800 transition-colors font-medium"
-            >
-              {t('order')}
-            </Link>
-          )}
+          <Link
+            href={`/${locale}/order`}
+            className="px-6 py-2 bg-charcoal-700 text-white rounded-full hover:bg-charcoal-800 transition-colors font-medium"
+          >
+            {t('order')}
+          </Link>
         </div>
 
         {/* Language Switcher - Dropdown */}
