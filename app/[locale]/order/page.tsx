@@ -458,9 +458,16 @@ export default function OrderPage() {
                                   )}
                                 </div>
                                 <div className="p-4">
-                                  <h4 className="font-semibold text-charcoal-900 mb-2">
-                                    {item.name}
-                                  </h4>
+                                  <div className="flex items-start justify-between mb-2">
+                                    <h4 className="font-semibold text-charcoal-900">
+                                      {item.name}
+                                    </h4>
+                                    {item.low_stock && item.stock_quantity !== null && (
+                                      <span className="ml-2 px-2 py-1 text-xs font-semibold bg-orange-100 text-orange-800 rounded-full whitespace-nowrap">
+                                        {t('lowStock') || 'Осталось'} {item.stock_quantity}
+                                      </span>
+                                    )}
+                                  </div>
                                   {item.description && (
                                     <div
                                       className="text-sm text-charcoal-600 line-clamp-2 mb-3 prose prose-sm max-w-none"
@@ -786,9 +793,16 @@ export default function OrderPage() {
               </button>
             </div>
             <div className="p-6">
-              <h2 className="text-2xl font-bold text-charcoal-900 mb-4">
-                {selectedItem.name}
-              </h2>
+              <div className="flex items-start justify-between mb-4">
+                <h2 className="text-2xl font-bold text-charcoal-900">
+                  {selectedItem.name}
+                </h2>
+                {selectedItem.low_stock && selectedItem.stock_quantity !== null && (
+                  <span className="ml-4 px-3 py-1 text-sm font-semibold bg-orange-100 text-orange-800 rounded-full whitespace-nowrap">
+                    {t('lowStock') || 'Осталось'} {selectedItem.stock_quantity}
+                  </span>
+                )}
+              </div>
               {selectedItem.description && (
                 <div
                   className="text-charcoal-700 mb-6 prose prose-sm max-w-none"

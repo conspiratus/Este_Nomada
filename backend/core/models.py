@@ -268,6 +268,113 @@ class MenuItemTranslation(models.Model):
         return f'{self.menu_item.name} ({self.locale})'
 
 
+class Stock(models.Model):
+    """Модель для остатков блюд на складе."""
+    menu_item = models.OneToOneField(
+        MenuItem,
+        on_delete=models.CASCADE,
+        related_name='stock',
+        verbose_name='Блюдо'
+    )
+    home_kitchen_quantity = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name='Остаток на домашней кухне',
+        help_text='Количество порций на домашней кухне'
+    )
+    delivery_kitchen_quantity = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name='Остаток на кухне доставки',
+        help_text='Количество порций на кухне доставки'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+
+    class Meta:
+        db_table = 'stock'
+        verbose_name = 'Остаток на складе'
+        verbose_name_plural = 'Остатки на складе'
+        indexes = [
+            models.Index(fields=['menu_item']),
+        ]
+
+    def __str__(self):
+        return f'{self.menu_item.name} - Дом: {self.home_kitchen_quantity}, Доставка: {self.delivery_kitchen_quantity}'
+    
+    def get_total_quantity(self):
+        """Получить общее количество порций."""
+        return self.home_kitchen_quantity + self.delivery_kitchen_quantity
+    
+    def get_low_stock_warning(self, threshold=5):
+        """Проверяет, нужно ли предупреждение о низком остатке."""
+        return self.get_total_quantity() < threshold
+
+
+class Ingredient(models.Model):
+    """Модель для продуктов/ингредиентов."""
+    name = models.CharField(max_length=255, verbose_name='Название продукта')
+    unit = models.CharField(
+        max_length=50,
+        default='шт',
+        verbose_name='Единица измерения',
+        help_text='Например: кг, г, л, мл, шт'
+    )
+    description = models.TextField(blank=True, null=True, verbose_name='Описание')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+
+    class Meta:
+        db_table = 'ingredients'
+        verbose_name = 'Ингредиент'
+        verbose_name_plural = 'Ингредиенты'
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['name']),
+        ]
+
+    def __str__(self):
+        return f'{self.name} ({self.unit})'
+
+
+class MenuItemIngredient(models.Model):
+    """Связь блюда с ингредиентами и их количеством."""
+    menu_item = models.ForeignKey(
+        MenuItem,
+        on_delete=models.CASCADE,
+        related_name='ingredients',
+        verbose_name='Блюдо'
+    )
+    ingredient = models.ForeignKey(
+        Ingredient,
+        on_delete=models.CASCADE,
+        related_name='menu_items',
+        verbose_name='Ингредиент'
+    )
+    quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        validators=[MinValueValidator(0)],
+        verbose_name='Количество',
+        help_text='Количество ингредиента на одну порцию блюда'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+
+    class Meta:
+        db_table = 'menu_item_ingredients'
+        verbose_name = 'Ингредиент блюда'
+        verbose_name_plural = 'Ингредиенты блюд'
+        unique_together = [['menu_item', 'ingredient']]
+        indexes = [
+            models.Index(fields=['menu_item']),
+            models.Index(fields=['ingredient']),
+        ]
+
+    def __str__(self):
+        return f'{self.menu_item.name} - {self.ingredient.name}: {self.quantity} {self.ingredient.unit}'
+
+
 class MenuItemImage(models.Model):
     """Изображения для блюд меню."""
     menu_item = models.ForeignKey(MenuItem, related_name='images', on_delete=models.CASCADE, verbose_name='Блюдо')

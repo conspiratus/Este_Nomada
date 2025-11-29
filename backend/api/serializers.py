@@ -8,7 +8,7 @@ from core.models import (
     MenuItemCategory, MenuItemCategoryTranslation,
     HeroImage, HeroButton, HeroButtonTranslation, HeroSettings, Settings, Order, OrderItem, OrderReview, InstagramPost, Translation,
     ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation,
-    Customer, Cart, CartItem, Favorite, DeliverySettings
+    Customer, Cart, CartItem, Favorite, DeliverySettings, Stock, Ingredient, MenuItemIngredient
 )
 
 
@@ -170,6 +170,47 @@ class MenuItemAttributeSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 
+class IngredientSerializer(serializers.ModelSerializer):
+    """Сериализатор для ингредиентов."""
+    class Meta:
+        model = Ingredient
+        fields = ['id', 'name', 'unit', 'description', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class MenuItemIngredientSerializer(serializers.ModelSerializer):
+    """Сериализатор для связи блюда с ингредиентами."""
+    ingredient = IngredientSerializer(read_only=True)
+    ingredient_id = serializers.IntegerField(write_only=True, required=False)
+    
+    class Meta:
+        model = MenuItemIngredient
+        fields = ['id', 'ingredient', 'ingredient_id', 'quantity', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class StockSerializer(serializers.ModelSerializer):
+    """Сериализатор для остатков на складе."""
+    total_quantity = serializers.SerializerMethodField()
+    low_stock_warning = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Stock
+        fields = [
+            'id', 'menu_item', 'home_kitchen_quantity', 'delivery_kitchen_quantity',
+            'total_quantity', 'low_stock_warning', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_total_quantity(self, obj):
+        """Получить общее количество порций."""
+        return obj.get_total_quantity()
+    
+    def get_low_stock_warning(self, obj):
+        """Проверяет, нужно ли предупреждение о низком остатке."""
+        return obj.get_low_stock_warning(threshold=5)
+
+
 class MenuItemSerializer(serializers.ModelSerializer):
     """Сериализатор для блюд меню."""
     translations = MenuItemTranslationSerializer(many=True, read_only=True)
@@ -177,15 +218,32 @@ class MenuItemSerializer(serializers.ModelSerializer):
     attributes = MenuItemAttributeSerializer(many=True, read_only=True)
     related_stories = serializers.SerializerMethodField()
     category = MenuItemCategorySerializer(read_only=True)
+    stock = StockSerializer(read_only=True)
+    ingredients = MenuItemIngredientSerializer(many=True, read_only=True)
+    stock_quantity = serializers.SerializerMethodField()
+    low_stock = serializers.SerializerMethodField()
     
     class Meta:
         model = MenuItem
         fields = [
             'id', 'name', 'description', 'category', 'price',
             'image', 'order', 'active', 'translations', 'images', 'attributes',
-            'related_stories', 'created_at', 'updated_at'
+            'related_stories', 'stock', 'ingredients', 'stock_quantity', 'low_stock',
+            'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_stock_quantity(self, obj):
+        """Получить общее количество порций на складе."""
+        if hasattr(obj, 'stock'):
+            return obj.stock.get_total_quantity()
+        return None
+    
+    def get_low_stock(self, obj):
+        """Проверяет, нужно ли предупреждение о низком остатке."""
+        if hasattr(obj, 'stock'):
+            return obj.stock.get_low_stock_warning(threshold=5)
+        return False
     
     def get_related_stories(self, obj):
         """Возвращает связанные истории с учетом локали."""

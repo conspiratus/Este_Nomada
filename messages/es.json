@@ -93,7 +93,8 @@
     "postalCodeRequired": "El código postal es obligatorio para la entrega",
     "orderData": "Datos del Pedido",
     "email": "Email",
-    "emailPlaceholder": "your@email.com"
+    "emailPlaceholder": "your@email.com",
+    "lowStock": "Quedan"
   },
   "account": {
     "title": "Cuenta Personal",

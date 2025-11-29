@@ -93,7 +93,8 @@
     "postalCodeRequired": "Почтовый индекс обязателен для доставки",
     "orderData": "Данные для заказа",
     "email": "Email",
-    "emailPlaceholder": "your@email.com"
+    "emailPlaceholder": "your@email.com",
+    "lowStock": "Осталось"
   },
   "account": {
     "title": "Личный кабинет",

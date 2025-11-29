@@ -45,6 +45,8 @@ export interface MenuItem {
   name: string;
   description: string | null;
   category: MenuItemCategory | null;
+  stock_quantity?: number | null;
+  low_stock?: boolean;
 }
 
 export interface MenuCategoryGroup {

@@ -7,7 +7,8 @@ from .views import (
     StoryViewSet, MenuItemViewSet, MenuItemCategoryViewSet, SettingsViewSet, OrderViewSet,
     InstagramPostViewSet, TranslationViewSet,
     HeroImageViewSet, HeroButtonViewSet, HeroSettingsViewSet, ContentSectionViewSet, AboutSectionViewSet,
-    FooterSectionViewSet, CustomerViewSet, CartViewSet, FavoriteViewSet, DeliverySettingsViewSet
+    FooterSectionViewSet, CustomerViewSet, CartViewSet, FavoriteViewSet, DeliverySettingsViewSet,
+    StockViewSet, IngredientViewSet, MenuItemIngredientViewSet
 )
 
 router = DefaultRouter()
@@ -28,6 +29,9 @@ router.register(r'customers', CustomerViewSet, basename='customer')
 router.register(r'cart', CartViewSet, basename='cart')
 router.register(r'favorites', FavoriteViewSet, basename='favorite')
 router.register(r'delivery', DeliverySettingsViewSet, basename='delivery')
+router.register(r'stock', StockViewSet, basename='stock')
+router.register(r'ingredients', IngredientViewSet, basename='ingredient')
+router.register(r'menu-item-ingredients', MenuItemIngredientViewSet, basename='menuitemingredient')
 
 urlpatterns = [
     path('', include(router.urls)),

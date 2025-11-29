@@ -9,13 +9,13 @@ from django.shortcuts import get_object_or_404
 from core.models import (
     Story, MenuItem, MenuItemCategory, Settings, Order, OrderItem, OrderReview, InstagramPost, Translation,
     HeroImage, HeroButton, HeroSettings, ContentSection, FooterSection, DeliverySettings,
-    Customer, Cart, CartItem, Favorite
+    Customer, Cart, CartItem, Favorite, Stock, Ingredient, MenuItemIngredient
 )
 from .serializers import (
     StorySerializer, MenuItemSerializer, MenuItemCategorySerializer, SettingsSerializer,
     OrderSerializer, InstagramPostSerializer, TranslationSerializer,
     HeroImageSerializer, HeroButtonSerializer, HeroSettingsSerializer, ContentSectionSerializer,
-    FooterSectionSerializer
+    FooterSectionSerializer, StockSerializer, IngredientSerializer, MenuItemIngredientSerializer
 )
 
 
@@ -1163,4 +1163,46 @@ class DeliverySettingsViewSet(viewsets.ReadOnlyModelViewSet):
         result = settings.calculate_delivery_cost(postal_code, order_total)
         
         return Response(result, status=status.HTTP_200_OK if result.get('success') else status.HTTP_400_BAD_REQUEST)
+
+
+class StockViewSet(viewsets.ModelViewSet):
+    """ViewSet для управления остатками на складе."""
+    queryset = Stock.objects.all()
+    serializer_class = StockSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Фильтрация остатков."""
+        if self.request.user.is_staff:
+            return Stock.objects.all()
+        return Stock.objects.none()
+
+
+class IngredientViewSet(viewsets.ModelViewSet):
+    """ViewSet для управления ингредиентами."""
+    queryset = Ingredient.objects.all()
+    serializer_class = IngredientSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Фильтрация ингредиентов."""
+        if self.request.user.is_staff:
+            return Ingredient.objects.all()
+        return Ingredient.objects.none()
+
+
+class MenuItemIngredientViewSet(viewsets.ModelViewSet):
+    """ViewSet для управления составом блюд."""
+    queryset = MenuItemIngredient.objects.all()
+    serializer_class = MenuItemIngredientSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Фильтрация по блюду."""
+        menu_item_id = self.request.query_params.get('menu_item_id')
+        if menu_item_id:
+            return MenuItemIngredient.objects.filter(menu_item_id=menu_item_id)
+        if self.request.user.is_staff:
+            return MenuItemIngredient.objects.all()
+        return MenuItemIngredient.objects.none()
 

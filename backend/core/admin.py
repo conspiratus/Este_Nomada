@@ -13,7 +13,8 @@ from .models import (
     MenuItemCategory, MenuItemCategoryTranslation,
     HeroImage, HeroButton, HeroButtonTranslation, HeroSettings, Settings, Order, OrderItem, OrderReview, InstagramPost, Translation,
     ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation,
-    DishTTK, TTKVersionHistory, Customer, Cart, CartItem, Favorite, DeliverySettings
+    DishTTK, TTKVersionHistory, Customer, Cart, CartItem, Favorite, DeliverySettings,
+    Stock, Ingredient, MenuItemIngredient
 )
 
 # Стандартная модель User уже зарегистрирована в Django Admin
@@ -355,6 +356,24 @@ class MenuItemAttributeInline(admin.TabularInline):
     extra = 1
     fields = ['locale', 'name', 'value', 'order']
     verbose_name = 'Атрибут'
+
+
+class StockInline(admin.StackedInline):
+    """Inline для остатков на складе."""
+    model = Stock
+    extra = 0
+    max_num = 1
+    fields = ['home_kitchen_quantity', 'delivery_kitchen_quantity']
+    verbose_name = 'Остатки на складе'
+    verbose_name_plural = 'Остатки на складе'
+
+
+class MenuItemIngredientInline(admin.TabularInline):
+    """Inline для ингредиентов блюда."""
+    model = MenuItemIngredient
+    extra = 1
+    fields = ['ingredient', 'quantity']
+    autocomplete_fields = ['ingredient']
     verbose_name_plural = 'Атрибуты'
 
 
@@ -419,7 +438,7 @@ class MenuItemAdmin(admin.ModelAdmin):
     search_fields = ['name', 'description']
     list_editable = ['order', 'active']
     readonly_fields = ['created_at', 'updated_at']
-    inlines = [MenuItemTranslationInline, MenuItemImageInline, MenuItemAttributeInline]
+    inlines = [MenuItemTranslationInline, MenuItemImageInline, MenuItemAttributeInline, StockInline, MenuItemIngredientInline]
     fieldsets = (
         ('Основная информация (базовая)', {
             'fields': ('name', 'description', 'category'),
@@ -1126,6 +1145,91 @@ class DeliverySettingsAdmin(admin.ModelAdmin):
     )
 
 
+class StockAdmin(admin.ModelAdmin):
+    """Админка для остатков на складе."""
+    list_display = ['menu_item', 'home_kitchen_quantity', 'delivery_kitchen_quantity', 'total_quantity_display', 'low_stock_warning_display', 'updated_at']
+    list_filter = ['updated_at']
+    search_fields = ['menu_item__name']
+    readonly_fields = ['created_at', 'updated_at', 'total_quantity_display', 'low_stock_warning_display']
+    fieldsets = (
+        ('Блюдо', {
+            'fields': ('menu_item',)
+        }),
+        ('Остатки', {
+            'fields': ('home_kitchen_quantity', 'delivery_kitchen_quantity', 'total_quantity_display', 'low_stock_warning_display'),
+            'description': 'Количество порций на домашней кухне и кухне доставки'
+        }),
+        ('Даты', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def total_quantity_display(self, obj):
+        """Отображает общее количество порций."""
+        total = obj.get_total_quantity()
+        return format_html('<strong>{}</strong>', total)
+    total_quantity_display.short_description = 'Всего порций'
+    
+    def low_stock_warning_display(self, obj):
+        """Отображает предупреждение о низком остатке."""
+        if obj.get_low_stock_warning(threshold=5):
+            return format_html('<span style="color: red; font-weight: bold;">⚠ Низкий остаток!</span>')
+        return format_html('<span style="color: green;">✓ Норма</span>')
+    low_stock_warning_display.short_description = 'Статус остатка'
+
+
+class IngredientAdmin(admin.ModelAdmin):
+    """Админка для ингредиентов."""
+    list_display = ['name', 'unit', 'description_preview', 'created_at']
+    list_filter = ['unit', 'created_at']
+    search_fields = ['name', 'description']
+    readonly_fields = ['created_at', 'updated_at']
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('name', 'unit', 'description')
+        }),
+        ('Даты', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def description_preview(self, obj):
+        """Превью описания."""
+        if obj.description:
+            return obj.description[:50] + '...' if len(obj.description) > 50 else obj.description
+        return '—'
+    description_preview.short_description = 'Описание'
+
+
+class MenuItemIngredientAdmin(admin.ModelAdmin):
+    """Админка для состава блюд."""
+    list_display = ['menu_item', 'ingredient', 'quantity', 'unit_display', 'created_at']
+    list_filter = ['created_at', 'ingredient']
+    search_fields = ['menu_item__name', 'ingredient__name']
+    readonly_fields = ['created_at', 'updated_at']
+    autocomplete_fields = ['menu_item', 'ingredient']
+    fieldsets = (
+        ('Связь', {
+            'fields': ('menu_item', 'ingredient')
+        }),
+        ('Количество', {
+            'fields': ('quantity',),
+            'description': 'Количество ингредиента на одну порцию блюда'
+        }),
+        ('Даты', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def unit_display(self, obj):
+        """Отображает единицу измерения ингредиента."""
+        return obj.ingredient.unit
+    unit_display.short_description = 'Единица измерения'
+
+
 # Регистрируем все модели в кастомном админ-сайте вместо стандартного
 custom_admin_site.register(Story, StoryAdmin)
 custom_admin_site.register(MenuItemCategory, MenuItemCategoryAdmin)
@@ -1146,4 +1250,7 @@ custom_admin_site.register(Customer, CustomerAdmin)
 custom_admin_site.register(Cart, CartAdmin)
 custom_admin_site.register(Favorite, FavoriteAdmin)
 custom_admin_site.register(DeliverySettings, DeliverySettingsAdmin)
+custom_admin_site.register(Stock, StockAdmin)
+custom_admin_site.register(Ingredient, IngredientAdmin)
+custom_admin_site.register(MenuItemIngredient, MenuItemIngredientAdmin)
 
