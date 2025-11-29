@@ -583,11 +583,13 @@ class CustomerSerializer(serializers.ModelSerializer):
     """Сериализатор для клиента."""
     email_display = serializers.CharField(source='get_email_display', read_only=True)
     phone_display = serializers.CharField(source='get_phone_display', read_only=True)
+    email_readable = serializers.SerializerMethodField()
+    phone_readable = serializers.SerializerMethodField()
     
     class Meta:
         model = Customer
         fields = [
-            'id', 'user', 'email', 'email_display', 'phone', 'phone_display',
+            'id', 'user', 'email', 'email_display', 'email_readable', 'phone', 'phone_display', 'phone_readable',
             'name', 'postal_code', 'address', 'is_registered', 'email_verified',
             'created_at', 'updated_at', 'last_login'
         ]
@@ -596,6 +598,20 @@ class CustomerSerializer(serializers.ModelSerializer):
             'email': {'write_only': True},
             'phone': {'write_only': True},
         }
+    
+    def get_email_readable(self, obj):
+        """Возвращает реальный email только для текущего пользователя."""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and obj.user == request.user:
+            return obj.email
+        return None
+    
+    def get_phone_readable(self, obj):
+        """Возвращает реальный телефон только для текущего пользователя."""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and obj.user == request.user:
+            return obj.phone
+        return None
 
 
 class CartItemDetailSerializer(serializers.ModelSerializer):

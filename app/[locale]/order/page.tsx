@@ -10,6 +10,7 @@ import Image from 'next/image';
 import type { MenuCategoryGroup } from '@/lib/menu-api';
 import RegistrationModal from '@/components/modals/RegistrationModal';
 import { useRouter } from 'next/navigation';
+import { fetchWithAuth, getAccessToken } from '@/lib/auth';
 
 interface CartItem {
   id: number;
@@ -60,6 +61,7 @@ export default function OrderPage() {
   useEffect(() => {
     loadMenuItems();
     loadCart();
+    loadCustomerData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale]);
 
@@ -106,6 +108,51 @@ export default function OrderPage() {
     } catch (err) {
       console.error("Error loading cart:", err);
       setCart([]);
+    }
+  };
+
+  const loadCustomerData = async () => {
+    try {
+      // Проверяем наличие токена
+      const token = getAccessToken();
+      if (!token) {
+        console.log('[Order] No token, skipping customer data load');
+        return;
+      }
+
+      console.log('[Order] Loading customer data');
+      const response = await fetchWithAuth(`${API_BASE_URL}/customers/`);
+      
+      if (response.ok) {
+        const customerData = await response.json();
+        console.log('[Order] Customer data received:', { count: customerData?.length || 0 });
+        
+        if (customerData && customerData.length > 0) {
+          const customer = customerData[0];
+          console.log('[Order] Filling form with customer data:', {
+            name: customer.name,
+            email: customer.email_display,
+            phone: customer.phone_display,
+            postal_code: customer.postal_code,
+            address: customer.address
+          });
+          
+          // Заполняем форму данными пользователя
+          // Используем email_readable и phone_readable, если доступны, иначе используем display версии
+          setFormData(prev => ({
+            ...prev,
+            name: customer.name || prev.name,
+            email: customer.email_readable || customer.email_display || prev.email,
+            phone: customer.phone_readable || customer.phone_display || prev.phone,
+            postal_code: customer.postal_code || prev.postal_code,
+            address: customer.address || prev.address,
+          }));
+        }
+      } else {
+        console.log('[Order] Failed to load customer data:', response.status);
+      }
+    } catch (err) {
+      console.error("[Order] Error loading customer data:", err);
     }
   };
 
