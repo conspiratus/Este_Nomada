@@ -282,16 +282,33 @@ class OrderViewSet(viewsets.ModelViewSet):
         customer = None
         if request.user.is_authenticated:
             customer = Customer.objects.filter(user=request.user).first()
+            # Если customer не найден, но пользователь авторизован, создаем его
+            if not customer:
+                customer = Customer.objects.create(
+                    user=request.user,
+                    email=request.user.email or data.get('email', ''),
+                    phone=data.get('phone', ''),
+                    name=data.get('name', ''),
+                    is_registered=True,
+                    email_verified=False
+                )
         else:
-            # Для неавторизованных создаем или находим customer по email
+            # Для неавторизованных ищем customer по email, но НЕ создаем новый
+            # Запрещаем создание нового customer с существующим email
             email = data.get('email')
-            phone = data.get('phone')
             if email:
                 customer = Customer.objects.filter(email=email).first()
+                # Если customer не найден, создаем только если email уникален
                 if not customer:
+                    # Проверяем, нет ли уже customer с таким email (даже зарегистрированного)
+                    if Customer.objects.filter(email=email).exists():
+                        return Response(
+                            {'error': 'Пользователь с таким email уже существует. Пожалуйста, войдите в систему.'},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
                     customer = Customer.objects.create(
                         email=email,
-                        phone=phone or '',
+                        phone=data.get('phone', ''),
                         name=data.get('name', ''),
                         is_registered=False,
                         email_verified=False
@@ -304,6 +321,35 @@ class OrderViewSet(viewsets.ModelViewSet):
         data_for_serializer = data.copy()
         if 'selected_dishes' in data_for_serializer:
             del data_for_serializer['selected_dishes']
+        
+        # Проверяем остатки на складе перед созданием заказа
+        for dish_data in selected_dishes:
+            # Поддерживаем оба формата: список ID и список словарей
+            if isinstance(dish_data, dict):
+                menu_item_id = dish_data.get('menu_item_id') or dish_data.get('id')
+                quantity = int(dish_data.get('quantity', 1))
+            else:
+                # Старый формат: просто ID
+                menu_item_id = dish_data
+                quantity = 1
+            
+            try:
+                menu_item = MenuItem.objects.get(id=menu_item_id, active=True)
+            except MenuItem.DoesNotExist:
+                return Response(
+                    {'error': f'Блюдо с ID {menu_item_id} не найдено'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Проверяем остаток на складе
+            if hasattr(menu_item, 'stock'):
+                stock = menu_item.stock
+                total_stock = stock.get_total_quantity()
+                if total_stock < quantity:
+                    return Response(
+                        {'error': f'Недостаточно остатка для блюда "{menu_item.name}". Доступно: {total_stock}, запрошено: {quantity}'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
         
         serializer = self.get_serializer(data=data_for_serializer)
         serializer.is_valid(raise_exception=True)
@@ -324,13 +370,34 @@ class OrderViewSet(viewsets.ModelViewSet):
             
             try:
                 menu_item = MenuItem.objects.get(id=menu_item_id, active=True)
-                OrderItem.objects.create(
+                order_item = OrderItem.objects.create(
                     order=order,
                     menu_item=menu_item,
-                    quantity=quantity
+                    quantity=quantity,
+                    price=menu_item.price or 0
                 )
                 if menu_item.price:
                     order_total += float(menu_item.price) * quantity
+                
+                # Уменьшаем остаток на складе
+                if hasattr(menu_item, 'stock'):
+                    stock = menu_item.stock
+                    # Определяем, с какой кухни брать (пока берем пропорционально)
+                    # Можно улучшить логику выбора кухни
+                    if stock.home_kitchen_quantity >= quantity:
+                        stock.home_kitchen_quantity -= quantity
+                    elif stock.delivery_kitchen_quantity >= quantity:
+                        stock.delivery_kitchen_quantity -= quantity
+                    else:
+                        # Если на одной кухне недостаточно, берем с обеих
+                        remaining = quantity
+                        if stock.home_kitchen_quantity > 0:
+                            taken_from_home = min(remaining, stock.home_kitchen_quantity)
+                            stock.home_kitchen_quantity -= taken_from_home
+                            remaining -= taken_from_home
+                        if remaining > 0:
+                            stock.delivery_kitchen_quantity -= remaining
+                    stock.save()
             except MenuItem.DoesNotExist:
                 pass
         
@@ -994,6 +1061,22 @@ class CartViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
+        # Проверяем остаток на складе
+        if hasattr(menu_item, 'stock'):
+            stock = menu_item.stock
+            total_stock = stock.get_total_quantity()
+            
+            # Проверяем текущее количество в корзине
+            existing_cart_item = CartItem.objects.filter(cart=cart, menu_item=menu_item).first()
+            current_quantity = existing_cart_item.quantity if existing_cart_item else 0
+            requested_total = current_quantity + quantity
+            
+            if requested_total > total_stock:
+                return Response(
+                    {'error': f'Недостаточно остатка. Доступно: {total_stock}, уже в корзине: {current_quantity}, запрашивается: {quantity}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
         cart_item, created = CartItem.objects.get_or_create(
             cart=cart,
             menu_item=menu_item,
@@ -1027,6 +1110,17 @@ class CartViewSet(viewsets.ModelViewSet):
                 {'error': 'Элемент корзины не найден'},
                 status=status.HTTP_404_NOT_FOUND
             )
+        
+        # Проверяем остаток на складе
+        if hasattr(cart_item.menu_item, 'stock'):
+            stock = cart_item.menu_item.stock
+            total_stock = stock.get_total_quantity()
+            
+            if quantity > total_stock:
+                return Response(
+                    {'error': f'Недостаточно остатка. Доступно: {total_stock}, запрашивается: {quantity}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         
         if quantity <= 0:
             cart_item.delete()

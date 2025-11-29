@@ -94,7 +94,10 @@
     "orderData": "Order Information",
     "email": "Email",
     "emailPlaceholder": "your@email.com",
-    "lowStock": "Left"
+    "lowStock": "Left",
+    "insufficientStock": "Insufficient stock",
+    "errorAddingToCart": "Error adding to cart",
+    "errorUpdatingCart": "Error updating cart"
   },
   "account": {
     "title": "Personal Account",

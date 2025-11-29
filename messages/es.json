@@ -94,7 +94,10 @@
     "orderData": "Datos del Pedido",
     "email": "Email",
     "emailPlaceholder": "your@email.com",
-    "lowStock": "Quedan"
+    "lowStock": "Quedan",
+    "insufficientStock": "Stock insuficiente",
+    "errorAddingToCart": "Error al agregar al carrito",
+    "errorUpdatingCart": "Error al actualizar el carrito"
   },
   "account": {
     "title": "Cuenta Personal",

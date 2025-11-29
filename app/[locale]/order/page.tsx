@@ -186,6 +186,15 @@ export default function OrderPage() {
 
   const updateCartItem = async (cartItemId: number, quantity: number) => {
     try {
+      // Проверяем остаток на фронте перед обновлением корзины
+      const cartItem = cart.find(ci => ci.id === cartItemId);
+      if (cartItem && cartItem.menu_item.stock_quantity !== null && cartItem.menu_item.stock_quantity !== undefined) {
+        if (quantity > cartItem.menu_item.stock_quantity) {
+          alert(t('insufficientStock') || `Недостаточно остатка. Доступно: ${cartItem.menu_item.stock_quantity}`);
+          return;
+        }
+      }
+      
       let cartResponse = await fetch(`${API_BASE_URL}/cart/?locale=${locale}`, {
         credentials: 'include',
       });
@@ -204,9 +213,14 @@ export default function OrderPage() {
 
       if (response.ok) {
         await loadCart();
+      } else {
+        // Если бэкенд вернул ошибку (например, недостаточно остатка)
+        const errorData = await response.json().catch(() => ({}));
+        alert(errorData.error || t('errorUpdatingCart') || 'Ошибка при обновлении корзины');
       }
     } catch (err) {
       console.error("Error updating cart:", err);
+      alert(t('errorUpdatingCart') || 'Ошибка при обновлении корзины');
     }
   };
 
@@ -319,10 +333,9 @@ export default function OrderPage() {
         selected_dishes: selectedDishes,
       };
 
-      const response = await fetch(`${API_BASE_URL}/orders/`, {
+      // Используем fetchWithAuth для передачи токена авторизации
+      const response = await fetchWithAuth(`${API_BASE_URL}/orders/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(orderData),
       });
 
