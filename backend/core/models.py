@@ -337,6 +337,56 @@ class Supplier(models.Model):
         return self.name
 
 
+class PriceSource(models.Model):
+    """Модель для источников цен (магазины, поставщики)."""
+    name = models.CharField(max_length=255, unique=True, verbose_name='Название источника')
+    slug = models.SlugField(max_length=255, unique=True, blank=True, verbose_name='URL-адрес')
+    description = models.TextField(blank=True, null=True, verbose_name='Описание')
+    api_url = models.URLField(blank=True, null=True, verbose_name='API URL', help_text='URL для получения данных через API')
+    api_key = models.CharField(max_length=255, blank=True, null=True, verbose_name='API ключ', help_text='Ключ для доступа к API')
+    file_format = models.CharField(
+        max_length=50,
+        choices=[
+            ('csv', 'CSV'),
+            ('excel', 'Excel'),
+            ('xml', 'XML'),
+            ('json', 'JSON'),
+        ],
+        default='csv',
+        verbose_name='Формат файла',
+        help_text='Формат файла для импорта'
+    )
+    active = models.BooleanField(default=True, verbose_name='Активен')
+    last_sync = models.DateTimeField(blank=True, null=True, verbose_name='Последняя синхронизация')
+    sync_frequency = models.IntegerField(
+        default=24,
+        verbose_name='Частота синхронизации (часы)',
+        help_text='Как часто обновлять цены (в часах)'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+
+    class Meta:
+        db_table = 'price_sources'
+        verbose_name = 'Источник цен'
+        verbose_name_plural = 'Источники цен'
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['slug']),
+            models.Index(fields=['active']),
+        ]
+
+    def save(self, *args, **kwargs):
+        """Автоматически создаем slug из названия, если он не указан."""
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
 class IngredientCategory(models.Model):
     """Модель для категорий ингредиентов."""
     name = models.CharField(max_length=255, unique=True, verbose_name='Название категории')
@@ -443,6 +493,18 @@ class Ingredient(models.Model):
         verbose_name='Категория'
     )
     
+    # Источник цены
+    price_source = models.ForeignKey(
+        'PriceSource',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='ingredients',
+        verbose_name='Источник цены',
+        help_text='Откуда была получена цена'
+    )
+    price_updated_at = models.DateTimeField(blank=True, null=True, verbose_name='Дата обновления цены')
+    
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
 
@@ -455,6 +517,7 @@ class Ingredient(models.Model):
             models.Index(fields=['name']),
             models.Index(fields=['supplier']),
             models.Index(fields=['category']),
+            models.Index(fields=['price_source']),
         ]
 
     def calculate_cost_per_kg(self):
