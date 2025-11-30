@@ -85,6 +85,54 @@ export default function MenuItemModal({ item, isOpen, onClose }: MenuItemModalPr
     }
   };
 
+  const addToCart = async () => {
+    if (!item) return;
+    
+    // Проверяем остаток на фронте перед добавлением в корзину
+    if (item.stock_quantity !== null && item.stock_quantity !== undefined) {
+      if (item.stock_quantity === 0) {
+        alert(tOrder('outOfStock') || 'Нет в наличии');
+        return;
+      }
+    }
+
+    setAddingToCart(true);
+    
+    try {
+      // Сначала получаем или создаем корзину
+      let cartResponse = await fetch(`${API_BASE_URL}/cart/?locale=${locale}`, {
+        credentials: 'include',
+      });
+      let cartData = await cartResponse.json();
+      const cartId = cartData.id;
+
+      // Добавляем элемент
+      const response = await fetch(`${API_BASE_URL}/cart/${cartId}/add_item/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          menu_item_id: item.id,
+          quantity: 1,
+        }),
+      });
+
+      if (response.ok) {
+        // Уведомляем Header об обновлении корзины
+        window.dispatchEvent(new CustomEvent('cartUpdated'));
+        // Можно показать уведомление об успехе
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(errorData.error || tOrder('errorAddingToCart') || 'Ошибка при добавлении в корзину');
+      }
+    } catch (err) {
+      console.error("Error adding to cart:", err);
+      alert(tOrder('errorAddingToCart') || 'Ошибка при добавлении в корзину');
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
   if (!item || !isOpen) return null;
 
   return (
