@@ -261,55 +261,60 @@ class Migration(migrations.Migration):
         ),
         
         # Добавляем поле category в Ingredient (проверяем, не существует ли уже)
-        migrations.RunSQL(
-            sql="""
-                SET @exist := (SELECT COUNT(*) FROM information_schema.columns 
-                               WHERE table_schema = DATABASE() 
-                               AND table_name = 'ingredients' 
-                               AND column_name = 'category_id');
-                SET @sqlstmt := IF(@exist = 0, 
-                    'ALTER TABLE ingredients ADD COLUMN category_id BIGINT NULL, ADD CONSTRAINT ingredients_category_id_fk FOREIGN KEY (category_id) REFERENCES ingredient_categories(id) ON DELETE SET NULL',
-                    'SELECT ''Column category_id already exists''');
-                PREPARE stmt FROM @sqlstmt;
-                EXECUTE stmt;
-                DEALLOCATE PREPARE stmt;
-            """,
-            reverse_sql="ALTER TABLE ingredients DROP FOREIGN KEY IF EXISTS ingredients_category_id_fk, DROP COLUMN IF EXISTS category_id;",
-        ),
-        
-        # Добавляем индекс для category (если его нет)
-        migrations.RunSQL(
-            sql="""
-                SET @exist := (SELECT COUNT(*) FROM information_schema.statistics 
-                               WHERE table_schema = DATABASE() 
-                               AND table_name = 'ingredients' 
-                               AND index_name = 'ingredients_category_idx');
-                SET @sqlstmt := IF(@exist = 0, 
-                    'CREATE INDEX ingredients_category_idx ON ingredients(category_id)',
-                    'SELECT ''Index already exists''');
-                PREPARE stmt FROM @sqlstmt;
-                EXECUTE stmt;
-                DEALLOCATE PREPARE stmt;
-            """,
-            reverse_sql=migrations.RunSQL.noop,
-        ),
-        
-        # Обновляем состояние Django
-        migrations.AddField(
-            model_name='ingredient',
-            name='category',
-            field=models.ForeignKey(
-                blank=True,
-                null=True,
-                on_delete=django.db.models.deletion.SET_NULL,
-                related_name='ingredients',
-                to='core.ingredientcategory',
-                verbose_name='Категория'
-            ),
-        ),
-        migrations.AddIndex(
-            model_name='ingredient',
-            index=models.Index(fields=['category'], name='ingredients_category_idx'),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                # Добавляем колонку category_id только если её нет
+                migrations.RunSQL(
+                    sql="""
+                        SET @exist := (SELECT COUNT(*) FROM information_schema.columns 
+                                       WHERE table_schema = DATABASE() 
+                                       AND table_name = 'ingredients' 
+                                       AND column_name = 'category_id');
+                        SET @sqlstmt := IF(@exist = 0, 
+                            'ALTER TABLE ingredients ADD COLUMN category_id BIGINT NULL, ADD CONSTRAINT ingredients_category_id_fk FOREIGN KEY (category_id) REFERENCES ingredient_categories(id) ON DELETE SET NULL',
+                            'SELECT ''Column category_id already exists''');
+                        PREPARE stmt FROM @sqlstmt;
+                        EXECUTE stmt;
+                        DEALLOCATE PREPARE stmt;
+                    """,
+                    reverse_sql="ALTER TABLE ingredients DROP FOREIGN KEY IF EXISTS ingredients_category_id_fk, DROP COLUMN IF EXISTS category_id;",
+                ),
+                # Добавляем индекс для category (если его нет)
+                migrations.RunSQL(
+                    sql="""
+                        SET @exist := (SELECT COUNT(*) FROM information_schema.statistics 
+                                       WHERE table_schema = DATABASE() 
+                                       AND table_name = 'ingredients' 
+                                       AND index_name = 'ingredients_category_idx');
+                        SET @sqlstmt := IF(@exist = 0, 
+                            'CREATE INDEX ingredients_category_idx ON ingredients(category_id)',
+                            'SELECT ''Index already exists''');
+                        PREPARE stmt FROM @sqlstmt;
+                        EXECUTE stmt;
+                        DEALLOCATE PREPARE stmt;
+                    """,
+                    reverse_sql=migrations.RunSQL.noop,
+                ),
+            ],
+            state_operations=[
+                # Обновляем состояние Django
+                migrations.AddField(
+                    model_name='ingredient',
+                    name='category',
+                    field=models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name='ingredients',
+                        to='core.ingredientcategory',
+                        verbose_name='Категория'
+                    ),
+                ),
+                migrations.AddIndex(
+                    model_name='ingredient',
+                    index=models.Index(fields=['category'], name='ingredients_category_idx'),
+                ),
+            ],
         ),
         
         # Создаем категории и привязываем ингредиенты
