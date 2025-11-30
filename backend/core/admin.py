@@ -14,7 +14,7 @@ from .models import (
     HeroImage, HeroButton, HeroButtonTranslation, HeroSettings, Settings, Order, OrderItem, OrderReview, InstagramPost, Translation,
     ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation,
     DishTTK, TTKVersionHistory, Customer, Cart, CartItem, Favorite, DeliverySettings,
-    Stock, Supplier, Ingredient, MenuItemIngredient, IngredientStock
+    Stock, Supplier, IngredientCategory, Ingredient, MenuItemIngredient, IngredientStock
 )
 
 # Стандартная модель User уже зарегистрирована в Django Admin
@@ -1252,16 +1252,41 @@ class SupplierAdmin(admin.ModelAdmin):
     )
 
 
-class IngredientAdmin(admin.ModelAdmin):
-    """Админка для ингредиентов."""
-    list_display = ['name', 'unit', 'price', 'quantity', 'cost_per_kg_display', 'supplier', 'created_at']
-    list_filter = ['unit', 'supplier', 'created_at']
-    search_fields = ['name', 'description']
-    readonly_fields = ['created_at', 'updated_at', 'cost_per_kg_display']
-    autocomplete_fields = ['supplier']
+class IngredientCategoryAdmin(admin.ModelAdmin):
+    """Админка для категорий ингредиентов."""
+    list_display = ['name', 'slug', 'order', 'ingredients_count', 'active', 'created_at']
+    list_filter = ['active', 'created_at']
+    search_fields = ['name', 'slug', 'description']
+    readonly_fields = ['created_at', 'updated_at', 'ingredients_count']
+    prepopulated_fields = {'slug': ('name',)}
     fieldsets = (
         ('Основная информация', {
-            'fields': ('name', 'unit', 'description', 'supplier')
+            'fields': ('name', 'slug', 'description', 'order', 'active')
+        }),
+        ('Даты', {
+            'fields': ('created_at', 'updated_at', 'ingredients_count'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def ingredients_count(self, obj):
+        """Количество ингредиентов в категории."""
+        if obj.pk:
+            return obj.ingredients.count()
+        return 0
+    ingredients_count.short_description = 'Количество ингредиентов'
+
+
+class IngredientAdmin(admin.ModelAdmin):
+    """Админка для ингредиентов."""
+    list_display = ['name', 'category', 'unit', 'price', 'quantity', 'cost_per_kg_display', 'supplier', 'created_at']
+    list_filter = ['category', 'unit', 'supplier', 'created_at']
+    search_fields = ['name', 'description']
+    readonly_fields = ['created_at', 'updated_at', 'cost_per_kg_display']
+    autocomplete_fields = ['supplier', 'category']
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('name', 'category', 'unit', 'description', 'supplier')
         }),
         ('Цена и количество', {
             'fields': ('price', 'quantity', 'weight', 'cost_per_kg_display'),
@@ -1338,6 +1363,7 @@ custom_admin_site.register(Favorite, FavoriteAdmin)
 custom_admin_site.register(DeliverySettings, DeliverySettingsAdmin)
 custom_admin_site.register(Stock, StockAdmin)
 custom_admin_site.register(Supplier, SupplierAdmin)
+custom_admin_site.register(IngredientCategory, IngredientCategoryAdmin)
 custom_admin_site.register(Ingredient, IngredientAdmin)
 custom_admin_site.register(IngredientStock, IngredientStockAdmin)
 custom_admin_site.register(MenuItemIngredient, MenuItemIngredientAdmin)
