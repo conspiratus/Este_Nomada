@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ShoppingCart, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLocale, useTranslations } from 'next-intl';
 import type { MenuItem } from '@/lib/menu-api';
+import { getApiUrl } from '@/lib/get-api-url';
 
 interface MenuItemModalProps {
   item: MenuItem | null;
@@ -17,7 +18,11 @@ interface MenuItemModalProps {
 export default function MenuItemModal({ item, isOpen, onClose }: MenuItemModalProps) {
   const locale = useLocale();
   const t = useTranslations('menu');
+  const tOrder = useTranslations('order');
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [addingToCart, setAddingToCart] = useState(false);
+
+  const API_BASE_URL = getApiUrl();
 
   // Получаем все изображения: сначала из images, потом fallback на image
   const allImages = item
@@ -238,6 +243,33 @@ export default function MenuItemModal({ item, isOpen, onClose }: MenuItemModalPr
                     </div>
                   </div>
                 )}
+
+                {/* Кнопка добавить в корзину */}
+                <div className="mb-6 pt-6 border-t border-charcoal-200">
+                  {item.stock_quantity !== null && item.stock_quantity === 0 ? (
+                    <div className="w-full px-6 py-3 bg-gray-300 text-gray-600 rounded-lg text-center font-medium cursor-not-allowed">
+                      {tOrder('outOfStock') || 'Нет в наличии'}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={addToCart}
+                      disabled={addingToCart}
+                      className="w-full px-6 py-3 bg-saffron-500 text-white rounded-lg hover:bg-saffron-600 transition-colors font-medium flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {addingToCart ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>{tOrder('adding') || 'Добавление...'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="w-5 h-5" />
+                          <span>{tOrder('addToCart') || 'Добавить в корзину'}</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
 
                 {/* Thumbnail Images (if multiple) */}
                 {allImages.length > 1 && (
