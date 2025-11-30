@@ -166,6 +166,22 @@ export default function OrderPage() {
 
   const addToCart = async (menuItemId: number, quantity: number = 1) => {
     try {
+      // Проверяем остаток на фронте перед добавлением в корзину
+      const menuItem = menuCategories.flatMap(cat => cat.items).find(item => item.id === menuItemId);
+      if (menuItem && menuItem.stock_quantity !== null && menuItem.stock_quantity !== undefined) {
+        const currentCartItem = cart.find(ci => ci.menu_item.id === menuItemId);
+        const currentQuantityInCart = currentCartItem ? currentCartItem.quantity : 0;
+
+        if (menuItem.stock_quantity === 0) {
+          alert(t('outOfStock') || 'Нет в наличии');
+          return;
+        }
+        if (currentQuantityInCart + quantity > menuItem.stock_quantity) {
+          alert(t('insufficientStock') || `Недостаточно остатка. Доступно: ${menuItem.stock_quantity - currentQuantityInCart}`);
+          return;
+        }
+      }
+
       // Сначала получаем или создаем корзину
       let cartResponse = await fetch(`${API_BASE_URL}/cart/?locale=${locale}`, {
         credentials: 'include',
@@ -186,9 +202,14 @@ export default function OrderPage() {
 
       if (response.ok) {
         await loadCart();
+      } else {
+        // Если бэкенд вернул ошибку (например, недостаточно остатка)
+        const errorData = await response.json().catch(() => ({}));
+        alert(errorData.error || t('errorAddingToCart') || 'Ошибка при добавлении в корзину');
       }
     } catch (err) {
       console.error("Error adding to cart:", err);
+      alert(t('errorAddingToCart') || 'Ошибка при добавлении в корзину');
     }
   };
 
@@ -863,6 +884,16 @@ export default function OrderPage() {
                 {(() => {
                   const cartItem = cart.find(ci => ci.menu_item.id === selectedItem.id);
                   const quantity = cartItem?.quantity || 0;
+                  const isOutOfStock = selectedItem.stock_quantity !== null && selectedItem.stock_quantity === 0;
+                  
+                  if (isOutOfStock) {
+                    // Показываем сообщение "Нет в наличии" вместо кнопок
+                    return (
+                      <div className="w-full px-6 py-3 bg-gray-300 text-gray-600 rounded-lg text-center font-medium cursor-not-allowed">
+                        {t('outOfStock') || 'Нет в наличии'}
+                      </div>
+                    );
+                  }
                   
                   return (
                     <>
