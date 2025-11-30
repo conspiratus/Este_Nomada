@@ -311,16 +311,97 @@ class Stock(models.Model):
         return self.get_total_quantity() < threshold
 
 
+class Supplier(models.Model):
+    """Модель для поставщиков продуктов."""
+    name = models.CharField(max_length=255, verbose_name='Название поставщика')
+    contact_person = models.CharField(max_length=255, blank=True, null=True, verbose_name='Контактное лицо')
+    phone = models.CharField(max_length=50, blank=True, null=True, verbose_name='Телефон')
+    email = models.EmailField(blank=True, null=True, verbose_name='Email')
+    address = models.TextField(blank=True, null=True, verbose_name='Адрес')
+    notes = models.TextField(blank=True, null=True, verbose_name='Примечания')
+    active = models.BooleanField(default=True, verbose_name='Активен')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+
+    class Meta:
+        db_table = 'suppliers'
+        verbose_name = 'Поставщик'
+        verbose_name_plural = 'Поставщики'
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['active']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class Ingredient(models.Model):
     """Модель для продуктов/ингредиентов."""
+    
+    # Единицы измерения
+    UNIT_CHOICES = [
+        ('кг', 'Килограмм (кг)'),
+        ('г', 'Грамм (г)'),
+        ('л', 'Литр (л)'),
+        ('мл', 'Миллилитр (мл)'),
+        ('шт', 'Штука (шт)'),
+        ('уп', 'Упаковка (уп)'),
+        ('банка', 'Банка'),
+        ('бутылка', 'Бутылка'),
+    ]
+    
     name = models.CharField(max_length=255, verbose_name='Название продукта')
     unit = models.CharField(
         max_length=50,
+        choices=UNIT_CHOICES,
         default='шт',
         verbose_name='Единица измерения',
-        help_text='Например: кг, г, л, мл, шт'
+        help_text='Единица измерения продукта'
     )
     description = models.TextField(blank=True, null=True, verbose_name='Описание')
+    
+    # Цена и количество
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        blank=True,
+        null=True,
+        verbose_name='Цена',
+        help_text='Цена за единицу измерения'
+    )
+    quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        validators=[MinValueValidator(0)],
+        default=1,
+        verbose_name='Количество',
+        help_text='Количество в указанной единице измерения'
+    )
+    
+    # Вес для поштучных товаров (для расчета стоимости за кг)
+    weight = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        validators=[MinValueValidator(0)],
+        blank=True,
+        null=True,
+        verbose_name='Вес (кг)',
+        help_text='Вес одной единицы в килограммах (для поштучных товаров)'
+    )
+    
+    # Поставщик
+    supplier = models.ForeignKey(
+        'Supplier',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='ingredients',
+        verbose_name='Поставщик'
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
 
@@ -331,10 +412,52 @@ class Ingredient(models.Model):
         ordering = ['name']
         indexes = [
             models.Index(fields=['name']),
+            models.Index(fields=['supplier']),
         ]
 
+    def calculate_cost_per_kg(self):
+        """Рассчитывает стоимость за килограмм."""
+        if not self.price or self.price <= 0:
+            return None
+        
+        # Если единица измерения уже в килограммах
+        if self.unit == 'кг':
+            if self.quantity and self.quantity > 0:
+                return float(self.price / self.quantity)
+            return float(self.price)
+        
+        # Если единица измерения в граммах
+        if self.unit == 'г':
+            if self.quantity and self.quantity > 0:
+                # Переводим граммы в килограммы
+                kg_quantity = float(self.quantity) / 1000
+                return float(self.price / kg_quantity)
+            return None
+        
+        # Если поштучно и указан вес
+        if self.unit in ['шт', 'уп', 'банка', 'бутылка']:
+            if self.weight and self.weight > 0:
+                if self.quantity and self.quantity > 0:
+                    # Общий вес = количество * вес одной единицы
+                    total_weight = float(self.quantity) * float(self.weight)
+                    return float(self.price / total_weight)
+                # Если количество не указано, считаем что 1
+                return float(self.price / float(self.weight))
+            return None
+        
+        # Для других единиц измерения (л, мл) - не рассчитываем стоимость за кг
+        return None
+    
+    @property
+    def cost_per_kg(self):
+        """Свойство для получения стоимости за килограмм."""
+        return self.calculate_cost_per_kg()
+
     def __str__(self):
-        return f'{self.name} ({self.unit})'
+        unit_display = dict(self.UNIT_CHOICES).get(self.unit, self.unit)
+        if self.price:
+            return f'{self.name} ({unit_display}) - {self.price}€'
+        return f'{self.name} ({unit_display})'
 
 
 class MenuItemIngredient(models.Model):

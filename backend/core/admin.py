@@ -14,7 +14,7 @@ from .models import (
     HeroImage, HeroButton, HeroButtonTranslation, HeroSettings, Settings, Order, OrderItem, OrderReview, InstagramPost, Translation,
     ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation,
     DishTTK, TTKVersionHistory, Customer, Cart, CartItem, Favorite, DeliverySettings,
-    Stock, Ingredient, MenuItemIngredient
+    Stock, Supplier, Ingredient, MenuItemIngredient
 )
 
 # Стандартная модель User уже зарегистрирована в Django Admin
@@ -1179,21 +1179,55 @@ class StockAdmin(admin.ModelAdmin):
     low_stock_warning_display.short_description = 'Статус остатка'
 
 
-class IngredientAdmin(admin.ModelAdmin):
-    """Админка для ингредиентов."""
-    list_display = ['name', 'unit', 'description_preview', 'created_at']
-    list_filter = ['unit', 'created_at']
-    search_fields = ['name', 'description']
+class SupplierAdmin(admin.ModelAdmin):
+    """Админка для поставщиков."""
+    list_display = ['name', 'contact_person', 'phone', 'email', 'active', 'created_at']
+    list_filter = ['active', 'created_at']
+    search_fields = ['name', 'contact_person', 'phone', 'email', 'address']
     readonly_fields = ['created_at', 'updated_at']
     fieldsets = (
         ('Основная информация', {
-            'fields': ('name', 'unit', 'description')
+            'fields': ('name', 'contact_person', 'phone', 'email', 'address', 'active')
+        }),
+        ('Примечания', {
+            'fields': ('notes',),
+            'classes': ('collapse',)
         }),
         ('Даты', {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
+
+
+class IngredientAdmin(admin.ModelAdmin):
+    """Админка для ингредиентов."""
+    list_display = ['name', 'unit', 'price', 'quantity', 'cost_per_kg_display', 'supplier', 'created_at']
+    list_filter = ['unit', 'supplier', 'created_at']
+    search_fields = ['name', 'description']
+    readonly_fields = ['created_at', 'updated_at', 'cost_per_kg_display']
+    autocomplete_fields = ['supplier']
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('name', 'unit', 'description', 'supplier')
+        }),
+        ('Цена и количество', {
+            'fields': ('price', 'quantity', 'weight', 'cost_per_kg_display'),
+            'description': 'Укажите цену и количество. Для поштучных товаров укажите вес для расчета стоимости за кг.'
+        }),
+        ('Даты', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def cost_per_kg_display(self, obj):
+        """Отображение стоимости за килограмм."""
+        cost = obj.cost_per_kg
+        if cost is not None:
+            return f'{cost:.2f}€/кг'
+        return '—'
+    cost_per_kg_display.short_description = 'Стоимость за кг'
     
     def description_preview(self, obj):
         """Превью описания."""
@@ -1251,6 +1285,7 @@ custom_admin_site.register(Cart, CartAdmin)
 custom_admin_site.register(Favorite, FavoriteAdmin)
 custom_admin_site.register(DeliverySettings, DeliverySettingsAdmin)
 custom_admin_site.register(Stock, StockAdmin)
+custom_admin_site.register(Supplier, SupplierAdmin)
 custom_admin_site.register(Ingredient, IngredientAdmin)
 custom_admin_site.register(MenuItemIngredient, MenuItemIngredientAdmin)
 
