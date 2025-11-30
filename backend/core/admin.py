@@ -14,7 +14,7 @@ from .models import (
     HeroImage, HeroButton, HeroButtonTranslation, HeroSettings, Settings, Order, OrderItem, OrderReview, InstagramPost, Translation,
     ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation,
     DishTTK, TTKVersionHistory, Customer, Cart, CartItem, Favorite, DeliverySettings,
-    Stock, Supplier, Ingredient, MenuItemIngredient
+    Stock, Supplier, Ingredient, MenuItemIngredient, IngredientStock
 )
 
 # Стандартная модель User уже зарегистрирована в Django Admin
@@ -1146,7 +1146,7 @@ class DeliverySettingsAdmin(admin.ModelAdmin):
 
 
 class StockAdmin(admin.ModelAdmin):
-    """Админка для остатков на складе."""
+    """Админка для готовой продукции."""
     list_display = ['menu_item', 'home_kitchen_quantity', 'delivery_kitchen_quantity', 'total_quantity_display', 'low_stock_warning_display', 'updated_at']
     list_filter = ['updated_at']
     search_fields = ['menu_item__name']
@@ -1174,6 +1174,58 @@ class StockAdmin(admin.ModelAdmin):
     def low_stock_warning_display(self, obj):
         """Отображает предупреждение о низком остатке."""
         if obj.get_low_stock_warning(threshold=5):
+            return format_html('<span style="color: red; font-weight: bold;">⚠ Низкий остаток!</span>')
+        return format_html('<span style="color: green;">✓ Норма</span>')
+    low_stock_warning_display.short_description = 'Статус остатка'
+
+
+class IngredientStockAdmin(admin.ModelAdmin):
+    """Админка для склада ингредиентов."""
+    list_display = ['ingredient', 'quantity_display', 'unit_display', 'total_value_display', 'location', 'low_stock_warning_display', 'updated_at']
+    list_filter = ['location', 'updated_at']
+    search_fields = ['ingredient__name', 'location', 'notes']
+    readonly_fields = ['created_at', 'updated_at', 'quantity_display', 'unit_display', 'total_value_display', 'low_stock_warning_display']
+    autocomplete_fields = ['ingredient']
+    fieldsets = (
+        ('Ингредиент', {
+            'fields': ('ingredient',)
+        }),
+        ('Остаток на складе', {
+            'fields': ('quantity', 'quantity_display', 'unit_display', 'total_value_display', 'low_stock_warning_display'),
+            'description': 'Количество ингредиента на складе'
+        }),
+        ('Место хранения', {
+            'fields': ('location', 'notes'),
+            'classes': ('collapse',)
+        }),
+        ('Даты', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def quantity_display(self, obj):
+        """Отображает количество с единицей измерения."""
+        return format_html('<strong>{}</strong>', obj.quantity)
+    quantity_display.short_description = 'Количество'
+    
+    def unit_display(self, obj):
+        """Отображает единицу измерения."""
+        unit_display = dict(obj.ingredient.UNIT_CHOICES).get(obj.ingredient.unit, obj.ingredient.unit)
+        return unit_display
+    unit_display.short_description = 'Единица измерения'
+    
+    def total_value_display(self, obj):
+        """Отображает общую стоимость остатка."""
+        value = obj.get_total_value()
+        if value is not None:
+            return format_html('<strong>{:.2f}€</strong>', value)
+        return '—'
+    total_value_display.short_description = 'Стоимость остатка'
+    
+    def low_stock_warning_display(self, obj):
+        """Отображает предупреждение о низком остатке."""
+        if obj.get_low_stock_warning():
             return format_html('<span style="color: red; font-weight: bold;">⚠ Низкий остаток!</span>')
         return format_html('<span style="color: green;">✓ Норма</span>')
     low_stock_warning_display.short_description = 'Статус остатка'
@@ -1287,5 +1339,6 @@ custom_admin_site.register(DeliverySettings, DeliverySettingsAdmin)
 custom_admin_site.register(Stock, StockAdmin)
 custom_admin_site.register(Supplier, SupplierAdmin)
 custom_admin_site.register(Ingredient, IngredientAdmin)
+custom_admin_site.register(IngredientStock, IngredientStockAdmin)
 custom_admin_site.register(MenuItemIngredient, MenuItemIngredientAdmin)
 

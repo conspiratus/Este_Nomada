@@ -269,7 +269,7 @@ class MenuItemTranslation(models.Model):
 
 
 class Stock(models.Model):
-    """Модель для остатков блюд на складе."""
+    """Модель для остатков готовой продукции (блюд) на складе."""
     menu_item = models.OneToOneField(
         MenuItem,
         on_delete=models.CASCADE,
@@ -293,8 +293,8 @@ class Stock(models.Model):
 
     class Meta:
         db_table = 'stock'
-        verbose_name = 'Остаток на складе'
-        verbose_name_plural = 'Остатки на складе'
+        verbose_name = 'Готовая продукция'
+        verbose_name_plural = 'Готовая продукция'
         indexes = [
             models.Index(fields=['menu_item']),
         ]
@@ -309,6 +309,71 @@ class Stock(models.Model):
     def get_low_stock_warning(self, threshold=5):
         """Проверяет, нужно ли предупреждение о низком остатке."""
         return self.get_total_quantity() < threshold
+
+
+class IngredientStock(models.Model):
+    """Модель для остатков ингредиентов на складе."""
+    ingredient = models.OneToOneField(
+        Ingredient,
+        on_delete=models.CASCADE,
+        related_name='ingredient_stock',
+        verbose_name='Ингредиент'
+    )
+    quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        validators=[MinValueValidator(0)],
+        default=0,
+        verbose_name='Количество на складе',
+        help_text='Количество ингредиента на складе в единицах измерения продукта'
+    )
+    location = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name='Место хранения',
+        help_text='Место хранения на складе (например: холодильник, морозильник, полка)'
+    )
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='Примечания',
+        help_text='Дополнительные заметки о хранении'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+
+    class Meta:
+        db_table = 'ingredient_stock'
+        verbose_name = 'Склад (ингредиенты)'
+        verbose_name_plural = 'Склад (ингредиенты)'
+        indexes = [
+            models.Index(fields=['ingredient']),
+        ]
+
+    def __str__(self):
+        unit_display = dict(self.ingredient.UNIT_CHOICES).get(self.ingredient.unit, self.ingredient.unit)
+        return f'{self.ingredient.name}: {self.quantity} {unit_display}'
+    
+    def get_total_value(self):
+        """Рассчитывает общую стоимость остатка на складе."""
+        if self.ingredient.price and self.quantity:
+            return float(self.ingredient.price * self.quantity)
+        return None
+    
+    def get_low_stock_warning(self, threshold=None):
+        """Проверяет, нужно ли предупреждение о низком остатке."""
+        if threshold is None:
+            # Автоматический порог: если есть цена, считаем что нужно минимум на 50€
+            if self.ingredient.price:
+                threshold_value = 50.0
+                current_value = self.get_total_value()
+                if current_value is not None:
+                    return current_value < threshold_value
+            # Если нет цены, используем простое правило: меньше 1 единицы
+            return float(self.quantity) < 1.0
+        else:
+            return float(self.quantity) < threshold
 
 
 class Supplier(models.Model):
