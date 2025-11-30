@@ -459,6 +459,8 @@ class Ingredient(models.Model):
 
     def calculate_cost_per_kg(self):
         """Рассчитывает стоимость за килограмм."""
+        from decimal import Decimal
+        
         if not self.price or self.price <= 0:
             return None
         
@@ -472,7 +474,7 @@ class Ingredient(models.Model):
         if self.unit == 'г':
             if self.quantity and self.quantity > 0:
                 # Переводим граммы в килограммы
-                kg_quantity = float(self.quantity) / 1000
+                kg_quantity = self.quantity / Decimal('1000')
                 return float(self.price / kg_quantity)
             return None
         
@@ -481,10 +483,10 @@ class Ingredient(models.Model):
             if self.weight and self.weight > 0:
                 if self.quantity and self.quantity > 0:
                     # Общий вес = количество * вес одной единицы
-                    total_weight = float(self.quantity) * float(self.weight)
+                    total_weight = self.quantity * self.weight
                     return float(self.price / total_weight)
                 # Если количество не указано, считаем что 1
-                return float(self.price / float(self.weight))
+                return float(self.price / self.weight)
             return None
         
         # Для других единиц измерения (л, мл) - не рассчитываем стоимость за кг
