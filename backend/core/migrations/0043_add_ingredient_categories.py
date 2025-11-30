@@ -11,6 +11,23 @@ def create_categories_and_assign_ingredients(apps, schema_editor):
     IngredientCategory = apps.get_model('core', 'IngredientCategory')
     Ingredient = apps.get_model('core', 'Ingredient')
 
+    # Маппинг названий на slug (чтобы избежать пустых slug для кириллицы)
+    slug_mapping = {
+        'Овощи': 'ovoshchi',
+        'Мясо': 'myaso',
+        'Фрукты': 'frukty',
+        'Зелень': 'zelen',
+        'Крупы и бобовые': 'krupy-i-bobovye',
+        'Мучные продукты': 'muchnye-produkty',
+        'Специи и приправы': 'specii-i-pripravy',
+        'Масла и жиры': 'masla-i-zhiry',
+        'Молочные продукты': 'molochnye-produkty',
+        'Консервы': 'konservy',
+        'Жидкости': 'zhidkosti',
+        'Орехи и семена': 'orekhi-i-semena',
+        'Другое': 'drugoe',
+    }
+
     # Создаем категории
     categories_data = [
         {'name': 'Овощи', 'order': 1, 'description': 'Свежие овощи'},
@@ -30,18 +47,32 @@ def create_categories_and_assign_ingredients(apps, schema_editor):
 
     categories = {}
     for cat_data in categories_data:
-        category, created = IngredientCategory.objects.using(db_alias).get_or_create(
-            name=cat_data['name'],
-            defaults={
-                'slug': slugify(cat_data['name']),
-                'order': cat_data['order'],
-                'description': cat_data.get('description', ''),
-                'active': True,
-            }
-        )
-        categories[cat_data['name']] = category
-        if created:
+        # Используем предопределенный slug или генерируем через slugify
+        cat_slug = slug_mapping.get(cat_data['name'], slugify(cat_data['name']))
+        # Если slug все еще пустой, используем fallback
+        if not cat_slug:
+            cat_slug = f"category-{cat_data['order']}"
+        
+        # Проверяем существование категории по имени
+        try:
+            category = IngredientCategory.objects.using(db_alias).get(name=cat_data['name'])
+            # Если категория существует, обновляем slug если он пустой или неверный
+            if not category.slug or category.slug == '':
+                category.slug = cat_slug
+                category.save(using=db_alias)
+                print(f"Updated slug for existing category: {category.name}")
+        except IngredientCategory.DoesNotExist:
+            # Создаем новую категорию
+            category = IngredientCategory.objects.using(db_alias).create(
+                name=cat_data['name'],
+                slug=cat_slug,
+                order=cat_data['order'],
+                description=cat_data.get('description', ''),
+                active=True,
+            )
             print(f"Created category: {category.name}")
+        
+        categories[cat_data['name']] = category
 
     # Привязываем существующие ингредиенты к категориям
     category_mapping = {
