@@ -258,7 +258,6 @@ class Migration(migrations.Migration):
                     index=models.Index(fields=['active'], name='ingredient_c_active_idx'),
                 ),
             ],
-            ],
         ),
         
         # Добавляем поле category в Ingredient (проверяем, не существует ли уже)
