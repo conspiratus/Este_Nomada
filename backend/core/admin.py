@@ -1219,7 +1219,8 @@ class IngredientStockAdmin(admin.ModelAdmin):
         """Отображает общую стоимость остатка."""
         value = obj.get_total_value()
         if value is not None:
-            return format_html('<strong>{:.2f}€</strong>', value)
+            formatted_value = f'{value:.2f}€'
+            return format_html('<strong>{}</strong>', formatted_value)
         return '—'
     total_value_display.short_description = 'Стоимость остатка'
     
