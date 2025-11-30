@@ -575,26 +575,36 @@ class TranslationViewSet(viewsets.ModelViewSet):
         
         # Преобразуем в формат next-intl: { namespace: { key: value } }
         # Ключи с точками преобразуются в вложенную структуру
+        # Namespace с точками также преобразуются в вложенную структуру
         result = {}
         for trans in translations:
-            if trans.namespace not in result:
-                result[trans.namespace] = {}
+            # Обрабатываем namespace - если содержит точку, создаем вложенную структуру
+            namespace_parts = trans.namespace.split('.')
+            current = result
+            for part in namespace_parts[:-1]:
+                if part not in current:
+                    current[part] = {}
+                current = current[part]
+            final_namespace = namespace_parts[-1]
+            
+            if final_namespace not in current:
+                current[final_namespace] = {}
             
             # Если ключ содержит точку, преобразуем в вложенную структуру
             # Например: "status.pending" -> { status: { pending: value } }
             if '.' in trans.key:
                 keys = trans.key.split('.')
-                current = result[trans.namespace]
+                key_current = current[final_namespace]
                 # Создаем вложенную структуру для всех ключей кроме последнего
                 for key in keys[:-1]:
-                    if key not in current:
-                        current[key] = {}
-                    current = current[key]
+                    if key not in key_current:
+                        key_current[key] = {}
+                    key_current = key_current[key]
                 # Последний ключ - это значение
-                current[keys[-1]] = trans.value
+                key_current[keys[-1]] = trans.value
             else:
                 # Обычный ключ без точек
-                result[trans.namespace][trans.key] = trans.value
+                current[final_namespace][trans.key] = trans.value
         
         return Response(result)
 
