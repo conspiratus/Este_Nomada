@@ -126,13 +126,21 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
     // Проверяем авторизацию при изменении фокуса окна (возврат на вкладку)
     const handleFocus = () => {
       checkAuth();
+      loadCart();
     };
     window.addEventListener('focus', handleFocus);
     
+    // Слушаем события обновления корзины
+    const handleCartUpdate = () => {
+      loadCart();
+    };
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    
     return () => {
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('cartUpdated', handleCartUpdate);
     };
-  }, [checkAuth]);
+  }, [checkAuth, loadCart]);
 
   useEffect(() => {
     // Проверяем, что мы на клиенте
