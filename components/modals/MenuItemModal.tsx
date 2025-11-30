@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, ChevronRight, ShoppingCart, Plus } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ShoppingCart, Plus, Minus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLocale, useTranslations } from 'next-intl';
@@ -15,14 +15,52 @@ interface MenuItemModalProps {
   onClose: () => void;
 }
 
+interface CartItem {
+  id: number;
+  menu_item: MenuItem;
+  quantity: number;
+}
+
 export default function MenuItemModal({ item, isOpen, onClose }: MenuItemModalProps) {
   const locale = useLocale();
   const t = useTranslations('menu');
   const tOrder = useTranslations('order');
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [cart, setCart] = useState<CartItem[]>([]);
 
   const API_BASE_URL = getApiUrl();
+
+  // Загружаем корзину
+  const loadCart = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/cart/?locale=${locale}`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const cartData = await response.json();
+        setCart(cartData.items || []);
+      }
+    } catch (error) {
+      console.error("Error loading cart:", error);
+    }
+  }, [API_BASE_URL, locale]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadCart();
+    }
+    
+    // Слушаем обновления корзины
+    const handleCartUpdate = () => {
+      loadCart();
+    };
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate);
+    };
+  }, [isOpen, loadCart]);
 
   // Получаем все изображения: сначала из images, потом fallback на image
   const allImages = item
@@ -120,7 +158,7 @@ export default function MenuItemModal({ item, isOpen, onClose }: MenuItemModalPr
       if (response.ok) {
         // Уведомляем Header об обновлении корзины
         window.dispatchEvent(new CustomEvent('cartUpdated'));
-        // Можно показать уведомление об успехе
+        await loadCart();
       } else {
         const errorData = await response.json().catch(() => ({}));
         alert(errorData.error || tOrder('errorAddingToCart') || 'Ошибка при добавлении в корзину');
@@ -130,6 +168,37 @@ export default function MenuItemModal({ item, isOpen, onClose }: MenuItemModalPr
       alert(tOrder('errorAddingToCart') || 'Ошибка при добавлении в корзину');
     } finally {
       setAddingToCart(false);
+    }
+  };
+
+  const updateCartItem = async (cartItemId: number, quantity: number) => {
+    try {
+      let cartResponse = await fetch(`${API_BASE_URL}/cart/?locale=${locale}`, {
+        credentials: 'include',
+      });
+      let cartData = await cartResponse.json();
+      const cartId = cartData.id;
+
+      const response = await fetch(`${API_BASE_URL}/cart/${cartId}/update_item/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          cart_item_id: cartItemId,
+          quantity: quantity,
+        }),
+      });
+
+      if (response.ok) {
+        window.dispatchEvent(new CustomEvent('cartUpdated'));
+        await loadCart();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(errorData.error || tOrder('errorUpdatingCart') || 'Ошибка при обновлении корзины');
+      }
+    } catch (err) {
+      console.error("Error updating cart:", err);
+      alert(tOrder('errorUpdatingCart') || 'Ошибка при обновлении корзины');
     }
   };
 
@@ -292,31 +361,77 @@ export default function MenuItemModal({ item, isOpen, onClose }: MenuItemModalPr
                   </div>
                 )}
 
-                {/* Кнопка добавить в корзину */}
+                {/* Кнопка добавить в корзину или управление количеством */}
                 <div className="mb-6 pt-6 border-t border-charcoal-200">
                   {item.stock_quantity !== null && item.stock_quantity === 0 ? (
                     <div className="w-full px-6 py-3 bg-gray-300 text-gray-600 rounded-lg text-center font-medium cursor-not-allowed">
                       {tOrder('outOfStock') || 'Нет в наличии'}
                     </div>
-                  ) : (
-                    <button
-                      onClick={addToCart}
-                      disabled={addingToCart}
-                      className="w-full px-6 py-3 bg-saffron-500 text-white rounded-lg hover:bg-saffron-600 transition-colors font-medium flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {addingToCart ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          <span>{tOrder('adding') || 'Добавление...'}</span>
-                        </>
-                      ) : (
-                        <>
-                          <ShoppingCart className="w-5 h-5" />
-                          <span>{tOrder('addToCart') || 'Добавить в корзину'}</span>
-                        </>
-                      )}
-                    </button>
-                  )}
+                  ) : (() => {
+                    const cartItem = cart.find(ci => ci.menu_item.id === item.id);
+                    const quantity = cartItem?.quantity || 0;
+                    
+                    if (quantity > 0) {
+                      // Показываем кнопки +/- если блюдо уже в корзине
+                      return (
+                        <div className="flex items-center justify-center space-x-4">
+                          <button
+                            onClick={() => {
+                              if (cartItem) {
+                                updateCartItem(cartItem.id, quantity - 1);
+                              }
+                            }}
+                            className="p-2 rounded-full bg-saffron-100 text-saffron-700 hover:bg-saffron-200 transition-colors"
+                            aria-label={tOrder('decreaseQuantity')}
+                          >
+                            <Minus className="w-5 h-5" />
+                          </button>
+                          <span className="w-12 text-center font-semibold text-charcoal-900 text-lg">
+                            {quantity}
+                          </span>
+                          <button
+                            onClick={() => {
+                              if (cartItem) {
+                                updateCartItem(cartItem.id, quantity + 1);
+                              } else {
+                                addToCart();
+                              }
+                            }}
+                            disabled={addingToCart}
+                            className="p-2 rounded-full bg-saffron-500 text-white hover:bg-saffron-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label={tOrder('addToCart')}
+                          >
+                            {addingToCart ? (
+                              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                              <Plus className="w-5 h-5" />
+                            )}
+                          </button>
+                        </div>
+                      );
+                    } else {
+                      // Показываем кнопку "Добавить в корзину" если блюдо не в корзине
+                      return (
+                        <button
+                          onClick={addToCart}
+                          disabled={addingToCart}
+                          className="w-full px-6 py-3 bg-saffron-500 text-white rounded-lg hover:bg-saffron-600 transition-colors font-medium flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {addingToCart ? (
+                            <>
+                              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              <span>{tOrder('adding') || 'Добавление...'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <ShoppingCart className="w-5 h-5" />
+                              <span>{tOrder('addToCart') || 'Добавить в корзину'}</span>
+                            </>
+                          )}
+                        </button>
+                      );
+                    }
+                  })()}
                 </div>
 
                 {/* Thumbnail Images (if multiple) */}
