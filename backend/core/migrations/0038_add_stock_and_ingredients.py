@@ -6,33 +6,6 @@ import django.db.models.deletion
 import django.core.validators
 
 
-def create_tables_if_not_exists(apps, schema_editor):
-    """Создает таблицы только если они не существуют."""
-    db_alias = schema_editor.connection.alias
-    with schema_editor.connection.cursor() as cursor:
-        # Проверяем существование таблиц
-        tables_to_check = ['ingredients', 'stock', 'menu_item_ingredients']
-        existing_tables = []
-        
-        for table in tables_to_check:
-            cursor.execute("""
-                SELECT COUNT(*) 
-                FROM information_schema.tables 
-                WHERE table_schema = DATABASE() 
-                AND table_name = %s
-            """, [table])
-            if cursor.fetchone()[0] > 0:
-                existing_tables.append(table)
-                print(f"Table '{table}' already exists, will skip creation")
-        
-        return existing_tables
-
-
-def reverse_create_tables(apps, schema_editor):
-    """Откат миграции."""
-    pass
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -40,11 +13,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Проверяем существование таблиц перед созданием
-        migrations.RunPython(
-            create_tables_if_not_exists,
-            reverse_create_tables,
-        ),
         # Используем SeparateDatabaseAndState для безопасного создания моделей
         migrations.SeparateDatabaseAndState(
             database_operations=[
