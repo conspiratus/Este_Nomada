@@ -574,11 +574,27 @@ class TranslationViewSet(viewsets.ModelViewSet):
         translations = Translation.objects.filter(locale=locale)
         
         # Преобразуем в формат next-intl: { namespace: { key: value } }
+        # Ключи с точками преобразуются в вложенную структуру
         result = {}
         for trans in translations:
             if trans.namespace not in result:
                 result[trans.namespace] = {}
-            result[trans.namespace][trans.key] = trans.value
+            
+            # Если ключ содержит точку, преобразуем в вложенную структуру
+            # Например: "status.pending" -> { status: { pending: value } }
+            if '.' in trans.key:
+                keys = trans.key.split('.')
+                current = result[trans.namespace]
+                # Создаем вложенную структуру для всех ключей кроме последнего
+                for key in keys[:-1]:
+                    if key not in current:
+                        current[key] = {}
+                    current = current[key]
+                # Последний ключ - это значение
+                current[keys[-1]] = trans.value
+            else:
+                # Обычный ключ без точек
+                result[trans.namespace][trans.key] = trans.value
         
         return Response(result)
 
