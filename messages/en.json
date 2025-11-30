@@ -81,6 +81,7 @@
     "items": "Items",
     "delivery": "Delivery",
     "addToCart": "Add to cart",
+    "adding": "Adding...",
     "removeFromCart": "Remove",
     "decreaseQuantity": "Decrease quantity",
     "increaseQuantity": "Increase quantity",

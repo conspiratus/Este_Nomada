@@ -81,6 +81,7 @@
     "items": "Товары",
     "delivery": "Доставка",
     "addToCart": "Добавить в корзину",
+    "adding": "Добавление...",
     "removeFromCart": "Удалить",
     "decreaseQuantity": "Уменьшить количество",
     "increaseQuantity": "Увеличить количество",

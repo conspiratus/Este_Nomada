@@ -31,6 +31,7 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
     logo_url: null,
   });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [cartItemCount, setCartItemCount] = useState(0);
   
   // Определяем текущую локаль: сначала из prop, потом из pathname, потом из hook
   const getCurrentLocale = (): Locale => {
@@ -79,6 +80,30 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
     }
   }, []);
 
+  // Загружаем корзину для подсчета количества блюд
+  const loadCart = useCallback(async () => {
+    try {
+      const apiUrl = typeof window !== 'undefined' 
+        ? window.location.origin + '/api'
+        : '/api';
+      const response = await fetch(`${apiUrl}/cart/?locale=${locale}`, {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const cartData = await response.json();
+        // Подсчитываем общее количество блюд в корзине
+        const totalItems = cartData.items ? cartData.items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) : 0;
+        setCartItemCount(totalItems);
+      } else {
+        setCartItemCount(0);
+      }
+    } catch (error) {
+      console.error('[Header] Error loading cart:', error);
+      setCartItemCount(0);
+    }
+  }, [locale]);
+
   // Загружаем настройки сайта и проверяем авторизацию
   useEffect(() => {
     const fetchSettings = async () => {
@@ -96,6 +121,7 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
     
     fetchSettings();
     checkAuth();
+    loadCart();
     
     // Проверяем авторизацию при изменении фокуса окна (возврат на вкладку)
     const handleFocus = () => {
@@ -245,9 +271,14 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
           </Link>
           <Link
             href={`/${locale}/order`}
-            className="px-6 py-2 bg-charcoal-700 text-white rounded-full hover:bg-charcoal-800 transition-colors font-medium"
+            className="px-6 py-2 bg-charcoal-700 text-white rounded-full hover:bg-charcoal-800 transition-colors font-medium relative"
           >
             {t('order')}
+            {cartItemCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-saffron-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                {cartItemCount > 99 ? '99+' : cartItemCount}
+              </span>
+            )}
           </Link>
         </div>
 
@@ -397,9 +428,14 @@ export default function Header({ locale: localeProp }: HeaderProps = {}) {
               <Link
                 href={`/${locale}/order`}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="w-full px-6 py-2 bg-saffron-500 text-white rounded-full hover:bg-saffron-600 transition-colors font-medium text-center block"
+                className="w-full px-6 py-2 bg-saffron-500 text-white rounded-full hover:bg-saffron-600 transition-colors font-medium text-center block relative"
               >
                 {t('order')}
+                {cartItemCount > 0 && (
+                  <span className="absolute top-1 right-1 bg-charcoal-700 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                    {cartItemCount > 99 ? '99+' : cartItemCount}
+                  </span>
+                )}
               </Link>
               {isAuthenticated && (
               <Link

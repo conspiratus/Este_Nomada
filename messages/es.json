@@ -81,6 +81,7 @@
     "items": "Artículos",
     "delivery": "Entrega",
     "addToCart": "Añadir al carrito",
+    "adding": "Agregando...",
     "removeFromCart": "Eliminar",
     "decreaseQuantity": "Disminuir cantidad",
     "increaseQuantity": "Aumentar cantidad",

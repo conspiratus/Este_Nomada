@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import Image from "next/image";
+import { ShoppingCart, Plus } from 'lucide-react';
 import MenuItemModal from '@/components/modals/MenuItemModal';
 import type { MenuItem } from '@/lib/menu-api';
+import { getApiUrl } from '@/lib/get-api-url';
 
 interface MenuProps {
   menuItems: MenuItem[];
@@ -13,8 +15,13 @@ interface MenuProps {
 
 export default function Menu({ menuItems }: MenuProps) {
   const t = useTranslations('menu');
+  const tOrder = useTranslations('order');
+  const locale = useLocale();
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [addingToCart, setAddingToCart] = useState<number | null>(null);
+
+  const API_BASE_URL = getApiUrl();
 
   const handleItemClick = (item: MenuItem) => {
     setSelectedItem(item);
@@ -24,6 +31,55 @@ export default function Menu({ menuItems }: MenuProps) {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedItem(null);
+  };
+
+  const addToCart = async (menuItemId: number, e: React.MouseEvent) => {
+    e.stopPropagation(); // Предотвращаем открытие модального окна
+    
+    // Проверяем остаток на фронте перед добавлением в корзину
+    const menuItem = menuItems.find(item => item.id === menuItemId);
+    
+    if (menuItem && menuItem.stock_quantity !== null && menuItem.stock_quantity !== undefined) {
+      if (menuItem.stock_quantity === 0) {
+        alert(tOrder('outOfStock') || 'Нет в наличии');
+        return;
+      }
+    }
+
+    setAddingToCart(menuItemId);
+    
+    try {
+      // Сначала получаем или создаем корзину
+      let cartResponse = await fetch(`${API_BASE_URL}/cart/?locale=${locale}`, {
+        credentials: 'include',
+      });
+      let cartData = await cartResponse.json();
+      const cartId = cartData.id;
+
+      // Добавляем элемент
+      const response = await fetch(`${API_BASE_URL}/cart/${cartId}/add_item/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          menu_item_id: menuItemId,
+          quantity: 1,
+        }),
+      });
+
+      if (response.ok) {
+        // Уведомляем Header об обновлении корзины
+        window.dispatchEvent(new CustomEvent('cartUpdated'));
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(errorData.error || tOrder('errorAddingToCart') || 'Ошибка при добавлении в корзину');
+      }
+    } catch (err) {
+      console.error("Error adding to cart:", err);
+      alert(tOrder('errorAddingToCart') || 'Ошибка при добавлении в корзину');
+    } finally {
+      setAddingToCart(null);
+    }
   };
 
   // Получаем первое изображение для карточки
@@ -97,7 +153,7 @@ export default function Menu({ menuItems }: MenuProps) {
                       />
                     ) : null}
                     
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-3">
                       <span className="text-xs text-saffron-600 font-medium">
                         {item.category?.name || '—'}
                       </span>
@@ -105,6 +161,31 @@ export default function Menu({ menuItems }: MenuProps) {
                         {item.price ? `${item.price}€` : "—"}
                       </span>
                     </div>
+                    
+                    {/* Кнопка добавить в корзину */}
+                    {item.stock_quantity !== null && item.stock_quantity === 0 ? (
+                      <div className="w-full px-4 py-2 bg-gray-300 text-gray-600 rounded-lg text-center text-sm font-medium cursor-not-allowed">
+                        {tOrder('outOfStock') || 'Нет в наличии'}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={(e) => addToCart(item.id, e)}
+                        disabled={addingToCart === item.id}
+                        className="w-full px-4 py-2 bg-saffron-500 text-white rounded-lg hover:bg-saffron-600 transition-colors font-medium text-sm flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {addingToCart === item.id ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <span>{tOrder('adding') || 'Добавление...'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-4 h-4" />
+                            <span>{tOrder('addToCart') || 'В корзину'}</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               );
