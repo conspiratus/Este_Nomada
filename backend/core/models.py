@@ -928,7 +928,7 @@ class Order(models.Model):
     )
     
     # Контактная информация (для неавторизованных заказов) - ВСЕ ЗАШИФРОВАНО
-    name = EncryptedField(max_length=255, blank=True, null=True, verbose_name='Имя', default='')
+    name = EncryptedField(max_length=255, blank=True, null=True, verbose_name='Имя')
     email = EncryptedField(max_length=255, blank=True, null=True, verbose_name='Email')
     phone = EncryptedField(max_length=50, blank=True, null=True, verbose_name='Телефон')
     
