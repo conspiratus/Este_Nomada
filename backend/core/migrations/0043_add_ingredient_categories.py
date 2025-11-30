@@ -171,40 +171,131 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Создаем модель IngredientCategory
-        migrations.CreateModel(
-            name='IngredientCategory',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, unique=True, verbose_name='Название категории')),
-                ('slug', models.SlugField(blank=True, max_length=255, unique=True, verbose_name='URL-адрес')),
-                ('description', models.TextField(blank=True, null=True, verbose_name='Описание')),
-                ('order', models.IntegerField(default=0, help_text='Чем меньше число, тем выше в списке', verbose_name='Порядок сортировки')),
-                ('active', models.BooleanField(default=True, verbose_name='Активна')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Дата обновления')),
+        # Используем SeparateDatabaseAndState для безопасного создания модели
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                # Для MySQL создаем таблицу только если её нет
+                migrations.RunSQL(
+                    sql="""
+                        SET @exist := (SELECT COUNT(*) FROM information_schema.tables 
+                                       WHERE table_schema = DATABASE() AND table_name = 'ingredient_categories');
+                        SET @sqlstmt := IF(@exist = 0, 
+                            'CREATE TABLE ingredient_categories (
+                                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                name VARCHAR(255) NOT NULL UNIQUE,
+                                slug VARCHAR(255) UNIQUE,
+                                description LONGTEXT,
+                                `order` INT NOT NULL DEFAULT 0,
+                                active BOOLEAN NOT NULL DEFAULT TRUE,
+                                created_at DATETIME(6) NOT NULL,
+                                updated_at DATETIME(6) NOT NULL
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4',
+                            'SELECT ''Table ingredient_categories already exists''');
+                        PREPARE stmt FROM @sqlstmt;
+                        EXECUTE stmt;
+                        DEALLOCATE PREPARE stmt;
+                    """,
+                    reverse_sql="DROP TABLE IF EXISTS ingredient_categories;",
+                ),
+                # Создаем индексы только если их нет
+                migrations.RunSQL(
+                    sql="""
+                        SET @exist := (SELECT COUNT(*) FROM information_schema.statistics 
+                                       WHERE table_schema = DATABASE() AND table_name = 'ingredient_categories' AND index_name = 'ingredient_c_name_idx');
+                        SET @sqlstmt := IF(@exist = 0, 'CREATE INDEX ingredient_c_name_idx ON ingredient_categories(name)', 'SELECT ''Index already exists''');
+                        PREPARE stmt FROM @sqlstmt;
+                        EXECUTE stmt;
+                        DEALLOCATE PREPARE stmt;
+                        
+                        SET @exist := (SELECT COUNT(*) FROM information_schema.statistics 
+                                       WHERE table_schema = DATABASE() AND table_name = 'ingredient_categories' AND index_name = 'ingredient_c_slug_idx');
+                        SET @sqlstmt := IF(@exist = 0, 'CREATE INDEX ingredient_c_slug_idx ON ingredient_categories(slug)', 'SELECT ''Index already exists''');
+                        PREPARE stmt FROM @sqlstmt;
+                        EXECUTE stmt;
+                        DEALLOCATE PREPARE stmt;
+                        
+                        SET @exist := (SELECT COUNT(*) FROM information_schema.statistics 
+                                       WHERE table_schema = DATABASE() AND table_name = 'ingredient_categories' AND index_name = 'ingredient_c_active_idx');
+                        SET @sqlstmt := IF(@exist = 0, 'CREATE INDEX ingredient_c_active_idx ON ingredient_categories(active)', 'SELECT ''Index already exists''');
+                        PREPARE stmt FROM @sqlstmt;
+                        EXECUTE stmt;
+                        DEALLOCATE PREPARE stmt;
+                    """,
+                    reverse_sql=migrations.RunSQL.noop,
+                ),
             ],
-            options={
-                'verbose_name': 'Категория ингредиентов',
-                'verbose_name_plural': 'Категории ингредиентов',
-                'db_table': 'ingredient_categories',
-                'ordering': ['order', 'name'],
-            },
-        ),
-        migrations.AddIndex(
-            model_name='ingredientcategory',
-            index=models.Index(fields=['name'], name='ingredient_c_name_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='ingredientcategory',
-            index=models.Index(fields=['slug'], name='ingredient_c_slug_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='ingredientcategory',
-            index=models.Index(fields=['active'], name='ingredient_c_active_idx'),
+            state_operations=[
+                # Обновляем состояние Django
+                migrations.CreateModel(
+                    name='IngredientCategory',
+                    fields=[
+                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                        ('name', models.CharField(max_length=255, unique=True, verbose_name='Название категории')),
+                        ('slug', models.SlugField(blank=True, max_length=255, unique=True, verbose_name='URL-адрес')),
+                        ('description', models.TextField(blank=True, null=True, verbose_name='Описание')),
+                        ('order', models.IntegerField(default=0, help_text='Чем меньше число, тем выше в списке', verbose_name='Порядок сортировки')),
+                        ('active', models.BooleanField(default=True, verbose_name='Активна')),
+                        ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')),
+                        ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Дата обновления')),
+                    ],
+                    options={
+                        'verbose_name': 'Категория ингредиентов',
+                        'verbose_name_plural': 'Категории ингредиентов',
+                        'db_table': 'ingredient_categories',
+                        'ordering': ['order', 'name'],
+                    },
+                ),
+                migrations.AddIndex(
+                    model_name='ingredientcategory',
+                    index=models.Index(fields=['name'], name='ingredient_c_name_idx'),
+                ),
+                migrations.AddIndex(
+                    model_name='ingredientcategory',
+                    index=models.Index(fields=['slug'], name='ingredient_c_slug_idx'),
+                ),
+                migrations.AddIndex(
+                    model_name='ingredientcategory',
+                    index=models.Index(fields=['active'], name='ingredient_c_active_idx'),
+                ),
+            ],
+            ],
         ),
         
-        # Добавляем поле category в Ingredient
+        # Добавляем поле category в Ingredient (проверяем, не существует ли уже)
+        migrations.RunSQL(
+            sql="""
+                SET @exist := (SELECT COUNT(*) FROM information_schema.columns 
+                               WHERE table_schema = DATABASE() 
+                               AND table_name = 'ingredients' 
+                               AND column_name = 'category_id');
+                SET @sqlstmt := IF(@exist = 0, 
+                    'ALTER TABLE ingredients ADD COLUMN category_id BIGINT NULL, ADD CONSTRAINT ingredients_category_id_fk FOREIGN KEY (category_id) REFERENCES ingredient_categories(id) ON DELETE SET NULL',
+                    'SELECT ''Column category_id already exists''');
+                PREPARE stmt FROM @sqlstmt;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
+            """,
+            reverse_sql="ALTER TABLE ingredients DROP FOREIGN KEY IF EXISTS ingredients_category_id_fk, DROP COLUMN IF EXISTS category_id;",
+        ),
+        
+        # Добавляем индекс для category (если его нет)
+        migrations.RunSQL(
+            sql="""
+                SET @exist := (SELECT COUNT(*) FROM information_schema.statistics 
+                               WHERE table_schema = DATABASE() 
+                               AND table_name = 'ingredients' 
+                               AND index_name = 'ingredients_category_idx');
+                SET @sqlstmt := IF(@exist = 0, 
+                    'CREATE INDEX ingredients_category_idx ON ingredients(category_id)',
+                    'SELECT ''Index already exists''');
+                PREPARE stmt FROM @sqlstmt;
+                EXECUTE stmt;
+                DEALLOCATE PREPARE stmt;
+            """,
+            reverse_sql=migrations.RunSQL.noop,
+        ),
+        
+        # Обновляем состояние Django
         migrations.AddField(
             model_name='ingredient',
             name='category',
@@ -217,8 +308,6 @@ class Migration(migrations.Migration):
                 verbose_name='Категория'
             ),
         ),
-        
-        # Добавляем индекс для category
         migrations.AddIndex(
             model_name='ingredient',
             index=models.Index(fields=['category'], name='ingredients_category_idx'),
