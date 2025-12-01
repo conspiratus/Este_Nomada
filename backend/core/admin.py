@@ -1417,6 +1417,10 @@ class TelegramAdminBotSettingsAdmin(admin.ModelAdmin):
             ),
             'description': 'Пороги для разных единиц измерения ингредиентов'
         }),
+        ('Настройки отображения заказов', {
+            'fields': ('orders_display_statuses',),
+            'description': 'Выберите статусы заказов, которые будут отображаться в разделе "Текущие заказы" бота. Статусы: pending (Ожидает), processing (Обрабатывается), completed (Завершен), cancelled (Отменен). Укажите через запятую, например: pending,processing'
+        }),
         ('Дата обновления', {
             'fields': ('updated_at',),
             'classes': ('collapse',)

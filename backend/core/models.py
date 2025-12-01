@@ -1811,7 +1811,21 @@ class TelegramAdminBotSettings(models.Model):
         help_text='Порог низкого остатка для поштучных товаров'
     )
     
+    # Настройки отображения заказов в боте
+    orders_display_statuses = models.CharField(
+        max_length=255,
+        default='pending,processing',
+        verbose_name='Статусы заказов для отображения',
+        help_text='Статусы заказов, которые будут отображаться в разделе "Текущие заказы" (через запятую: pending,processing,completed,cancelled)'
+    )
+    
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+    
+    def get_orders_display_statuses_list(self):
+        """Получить список статусов для отображения заказов."""
+        if not self.orders_display_statuses:
+            return ['pending', 'processing']  # По умолчанию
+        return [s.strip() for s in self.orders_display_statuses.split(',') if s.strip()]
     
     class Meta:
         db_table = 'telegram_admin_bot_settings'

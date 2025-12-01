@@ -183,8 +183,12 @@ def get_orders_list_keyboard(page: int = 0, orders_per_page: int = 5):
     """
     from core.models import Order
     
-    # Получаем все заказы, отсортированные по дате создания (новые первые)
-    all_orders = Order.objects.select_related('customer').prefetch_related('order_items__menu_item').order_by('-created_at')
+    # Получаем настройки бота для фильтрации по статусам
+    bot_settings = TelegramAdminBotSettings.get_settings()
+    display_statuses = bot_settings.get_orders_display_statuses_list()
+    
+    # Получаем заказы с фильтрацией по статусам, отсортированные по дате создания (новые первые)
+    all_orders = Order.objects.filter(status__in=display_statuses).select_related('customer').prefetch_related('order_items__menu_item').order_by('-created_at')
     total_orders = all_orders.count()
     
     # Вычисляем пагинацию
@@ -308,13 +312,14 @@ def format_order_details(order) -> str:
     return message.strip()
 
 
-def get_order_status_keyboard(order_id: int, current_status: str) -> dict:
+def get_order_status_keyboard(order_id: int, current_status: str, include_menu_button: bool = True) -> dict:
     """
     Создать inline keyboard для изменения статуса заказа.
     
     Args:
         order_id: ID заказа
         current_status: Текущий статус заказа
+        include_menu_button: Добавить кнопку возврата в меню
     
     Returns:
         Словарь с inline keyboard markup
@@ -338,6 +343,10 @@ def get_order_status_keyboard(order_id: int, current_status: str) -> dict:
         idx = status_map[current_status]
         # Добавляем галочку к текущему статусу
         status_buttons[idx][0]['text'] = f"✓ {status_buttons[idx][0]['text']}"
+    
+    # Добавляем кнопку возврата в меню, если нужно
+    if include_menu_button:
+        status_buttons.append([{'text': '🔙 Главное меню', 'callback_data': 'menu_main'}])
     
     return {
         'inline_keyboard': status_buttons
