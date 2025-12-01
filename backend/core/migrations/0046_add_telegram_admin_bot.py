@@ -8,11 +8,92 @@ from django.core.validators import MinValueValidator
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0047_merge_telegram_and_ttk'),
+        ('core', '0044_add_price_source'),
+        ('core', '0045_rename_hero_button_active_order_idx_hero_button_active_e451a7_idx_and_more'),
         ('auth', '0012_alter_user_first_name_max_length'),
     ]
 
     operations = [
+        # Используем SeparateDatabaseAndState для безопасного создания таблиц
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                # Создаем таблицу telegram_admin_bot_settings только если её нет
+                migrations.RunSQL(
+                    sql="""
+                        SET @exist := (SELECT COUNT(*) FROM information_schema.tables 
+                                       WHERE table_schema = DATABASE() AND table_name = 'telegram_admin_bot_settings');
+                        SET @sqlstmt := IF(@exist = 0, 
+                            'CREATE TABLE telegram_admin_bot_settings (
+                                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                bot_token LONGTEXT,
+                                enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                                notify_new_order BOOLEAN NOT NULL DEFAULT TRUE,
+                                notify_order_status_change BOOLEAN NOT NULL DEFAULT TRUE,
+                                notify_new_customer BOOLEAN NOT NULL DEFAULT TRUE,
+                                notify_review BOOLEAN NOT NULL DEFAULT TRUE,
+                                daily_reports_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                                daily_reports_time TIME NOT NULL DEFAULT ''09:00:00'',
+                                menu_item_low_stock_threshold INT NOT NULL DEFAULT 5,
+                                ingredient_threshold_kg DECIMAL(10,3) NOT NULL DEFAULT 1.0,
+                                ingredient_threshold_g DECIMAL(10,3) NOT NULL DEFAULT 500.0,
+                                ingredient_threshold_l DECIMAL(10,3) NOT NULL DEFAULT 1.0,
+                                ingredient_threshold_ml DECIMAL(10,3) NOT NULL DEFAULT 500.0,
+                                ingredient_threshold_pcs DECIMAL(10,3) NOT NULL DEFAULT 10.0,
+                                updated_at DATETIME(6) NOT NULL
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4',
+                            'SELECT ''Table telegram_admin_bot_settings already exists''');
+                        PREPARE stmt FROM @sqlstmt;
+                        EXECUTE stmt;
+                        DEALLOCATE PREPARE stmt;
+                    """,
+                    reverse_sql="DROP TABLE IF EXISTS telegram_admin_bot_settings;",
+                ),
+                # Создаем таблицу telegram_admin только если её нет
+                migrations.RunSQL(
+                    sql="""
+                        SET @exist := (SELECT COUNT(*) FROM information_schema.tables 
+                                       WHERE table_schema = DATABASE() AND table_name = 'telegram_admin');
+                        SET @sqlstmt := IF(@exist = 0, 
+                            'CREATE TABLE telegram_admin (
+                                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                telegram_chat_id BIGINT NOT NULL UNIQUE,
+                                authorized BOOLEAN NOT NULL DEFAULT FALSE,
+                                username VARCHAR(255),
+                                first_name VARCHAR(255),
+                                last_name VARCHAR(255),
+                                created_at DATETIME(6) NOT NULL,
+                                updated_at DATETIME(6) NOT NULL,
+                                user_id BIGINT NOT NULL UNIQUE,
+                                CONSTRAINT telegram_admin_user_id_fk FOREIGN KEY (user_id) REFERENCES auth_user(id) ON DELETE CASCADE
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4',
+                            'SELECT ''Table telegram_admin already exists''');
+                        PREPARE stmt FROM @sqlstmt;
+                        EXECUTE stmt;
+                        DEALLOCATE PREPARE stmt;
+                    """,
+                    reverse_sql="DROP TABLE IF EXISTS telegram_admin;",
+                ),
+                # Создаем индексы только если их нет
+                migrations.RunSQL(
+                    sql="""
+                        SET @exist := (SELECT COUNT(*) FROM information_schema.statistics 
+                                       WHERE table_schema = DATABASE() AND table_name = 'telegram_admin' AND index_name = 'telegram_ad_chat_id_idx');
+                        SET @sqlstmt := IF(@exist = 0, 'CREATE INDEX telegram_ad_chat_id_idx ON telegram_admin(telegram_chat_id)', 'SELECT ''Index already exists''');
+                        PREPARE stmt FROM @sqlstmt;
+                        EXECUTE stmt;
+                        DEALLOCATE PREPARE stmt;
+                        
+                        SET @exist := (SELECT COUNT(*) FROM information_schema.statistics 
+                                       WHERE table_schema = DATABASE() AND table_name = 'telegram_admin' AND index_name = 'telegram_ad_authoriz_idx');
+                        SET @sqlstmt := IF(@exist = 0, 'CREATE INDEX telegram_ad_authoriz_idx ON telegram_admin(authorized)', 'SELECT ''Index already exists''');
+                        PREPARE stmt FROM @sqlstmt;
+                        EXECUTE stmt;
+                        DEALLOCATE PREPARE stmt;
+                    """,
+                    reverse_sql=migrations.RunSQL.noop,
+                ),
+            ],
+            state_operations=[
         migrations.CreateModel(
             name='TelegramAdminBotSettings',
             fields=[
@@ -65,6 +146,8 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name='telegramadmin',
             index=models.Index(fields=['authorized'], name='telegram_ad_authoriz_idx'),
+        ),
+            ],
         ),
     ]
 
