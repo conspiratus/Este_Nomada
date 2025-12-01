@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS telegram_admin_bot_settings (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 2. Создаем таблицу telegram_admin (если не существует)
+-- Используем INT для user_id, так как auth_user.id обычно INT
 CREATE TABLE IF NOT EXISTS telegram_admin (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     telegram_chat_id BIGINT NOT NULL UNIQUE,
@@ -31,7 +32,7 @@ CREATE TABLE IF NOT EXISTS telegram_admin (
     last_name VARCHAR(255),
     created_at DATETIME(6) NOT NULL,
     updated_at DATETIME(6) NOT NULL,
-    user_id BIGINT NOT NULL UNIQUE,
+    user_id INT NOT NULL UNIQUE,
     CONSTRAINT telegram_admin_user_id_fk FOREIGN KEY (user_id) REFERENCES auth_user(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
