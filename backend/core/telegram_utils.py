@@ -430,8 +430,13 @@ def notify_new_order(order) -> None:
 📊 <b>Статус:</b> {dict(order.STATUS_CHOICES).get(order.status, order.status)}
 """
     
-    # Создаем keyboard для управления статусом
-    keyboard = get_order_status_keyboard(order.id, order.status)
+    # Создаем keyboard для управления статусом (без кнопки меню, так как это уведомление)
+    keyboard = get_order_status_keyboard(order.id, order.status, include_menu_button=False)
+    
+    # Добавляем кнопку перехода к списку заказов
+    orders_button = [{'text': '📋 К списку заказов', 'callback_data': 'menu_orders_page_0'}]
+    if 'inline_keyboard' in keyboard:
+        keyboard['inline_keyboard'].append(orders_button)
     
     # Отправляем сообщение с кнопками каждому авторизованному админу
     authorized_admins = TelegramAdmin.objects.filter(authorized=True)
