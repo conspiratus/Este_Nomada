@@ -10,7 +10,7 @@ from core.models import TelegramAdminBotSettings, TelegramAdmin
 logger = logging.getLogger(__name__)
 
 
-def send_telegram_message(chat_id: int, message: str, parse_mode: str = 'HTML') -> bool:
+def send_telegram_message(chat_id: int, message: str, parse_mode: str = 'HTML', reply_markup: dict = None) -> bool:
     """
     Отправить сообщение в Telegram.
     
@@ -18,6 +18,7 @@ def send_telegram_message(chat_id: int, message: str, parse_mode: str = 'HTML') 
         chat_id: ID чата получателя
         message: Текст сообщения
         parse_mode: Режим парсинга (HTML или Markdown)
+        reply_markup: Inline keyboard markup (опционально)
     
     Returns:
         True если сообщение отправлено успешно, False в противном случае
@@ -36,6 +37,9 @@ def send_telegram_message(chat_id: int, message: str, parse_mode: str = 'HTML') 
             'parse_mode': parse_mode,
         }
         
+        if reply_markup:
+            payload['reply_markup'] = reply_markup
+        
         response = requests.post(url, json=payload, timeout=10)
         response.raise_for_status()
         
@@ -47,6 +51,85 @@ def send_telegram_message(chat_id: int, message: str, parse_mode: str = 'HTML') 
         return False
     except Exception as e:
         logger.error(f"Unexpected error sending Telegram message: {str(e)}")
+        return False
+
+
+def answer_callback_query(callback_query_id: str, text: str = None, show_alert: bool = False) -> bool:
+    """
+    Ответить на callback query.
+    
+    Args:
+        callback_query_id: ID callback query
+        text: Текст ответа (опционально)
+        show_alert: Показать alert вместо уведомления
+    
+    Returns:
+        True если успешно, False в противном случае
+    """
+    bot_settings = TelegramAdminBotSettings.get_settings()
+    
+    if not bot_settings.enabled or not bot_settings.bot_token:
+        return False
+    
+    try:
+        url = f"https://api.telegram.org/bot{bot_settings.bot_token}/answerCallbackQuery"
+        payload = {
+            'callback_query_id': callback_query_id,
+        }
+        
+        if text:
+            payload['text'] = text
+        if show_alert:
+            payload['show_alert'] = True
+        
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error answering callback query {callback_query_id}: {str(e)}")
+        return False
+
+
+def edit_message_text(chat_id: int, message_id: int, text: str, parse_mode: str = 'HTML', reply_markup: dict = None) -> bool:
+    """
+    Редактировать текст сообщения в Telegram.
+    
+    Args:
+        chat_id: ID чата
+        message_id: ID сообщения
+        text: Новый текст
+        parse_mode: Режим парсинга
+        reply_markup: Inline keyboard markup (опционально)
+    
+    Returns:
+        True если успешно, False в противном случае
+    """
+    bot_settings = TelegramAdminBotSettings.get_settings()
+    
+    if not bot_settings.enabled or not bot_settings.bot_token:
+        return False
+    
+    try:
+        url = f"https://api.telegram.org/bot{bot_settings.bot_token}/editMessageText"
+        payload = {
+            'chat_id': chat_id,
+            'message_id': message_id,
+            'text': text,
+            'parse_mode': parse_mode,
+        }
+        
+        if reply_markup:
+            payload['reply_markup'] = reply_markup
+        
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error editing message {message_id} in chat {chat_id}: {str(e)}")
         return False
 
 
@@ -69,6 +152,42 @@ def send_notification_to_authorized_admins(message: str) -> int:
     
     logger.info(f"Sent notifications to {sent_count}/{authorized_admins.count()} authorized admins")
     return sent_count
+
+
+def get_order_status_keyboard(order_id: int, current_status: str) -> dict:
+    """
+    Создать inline keyboard для изменения статуса заказа.
+    
+    Args:
+        order_id: ID заказа
+        current_status: Текущий статус заказа
+    
+    Returns:
+        Словарь с inline keyboard markup
+    """
+    status_buttons = [
+        [{'text': '⏳ Ожидает', 'callback_data': f'order_status_{order_id}_pending'}],
+        [{'text': '🔄 Обрабатывается', 'callback_data': f'order_status_{order_id}_processing'}],
+        [{'text': '✅ Завершен', 'callback_data': f'order_status_{order_id}_completed'}],
+        [{'text': '❌ Отменен', 'callback_data': f'order_status_{order_id}_cancelled'}],
+    ]
+    
+    # Отмечаем текущий статус
+    status_map = {
+        'pending': 0,
+        'processing': 1,
+        'completed': 2,
+        'cancelled': 3,
+    }
+    
+    if current_status in status_map:
+        idx = status_map[current_status]
+        # Добавляем галочку к текущему статусу
+        status_buttons[idx][0]['text'] = f"✓ {status_buttons[idx][0]['text']}"
+    
+    return {
+        'inline_keyboard': status_buttons
+    }
 
 
 def notify_new_order(order) -> None:
@@ -144,9 +263,17 @@ def notify_new_order(order) -> None:
 📝 <b>Комментарий:</b> {order.comment or 'Нет комментария'}
 
 ⏰ <b>Дата:</b> {order.created_at.strftime('%d.%m.%Y %H:%M')}
+
+📊 <b>Статус:</b> {dict(order.STATUS_CHOICES).get(order.status, order.status)}
 """
     
-    send_notification_to_authorized_admins(message.strip())
+    # Создаем keyboard для управления статусом
+    keyboard = get_order_status_keyboard(order.id, order.status)
+    
+    # Отправляем сообщение с кнопками каждому авторизованному админу
+    authorized_admins = TelegramAdmin.objects.filter(authorized=True)
+    for admin in authorized_admins:
+        send_telegram_message(admin.telegram_chat_id, message.strip(), reply_markup=keyboard)
 
 
 def notify_order_status_change(order, old_status: str, new_status: str) -> None:
