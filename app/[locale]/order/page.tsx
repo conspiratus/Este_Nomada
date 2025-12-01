@@ -380,6 +380,34 @@ export default function OrderPage() {
         };
         localStorage.setItem('lastOrderData', JSON.stringify(orderData));
         
+        // Очищаем корзину на сервере и локально
+        try {
+          // Получаем корзину для очистки
+          const cartResponse = await fetch(`${API_BASE_URL}/cart/?locale=${locale}`, {
+            credentials: 'include',
+          });
+          if (cartResponse.ok) {
+            const cartData = await cartResponse.json();
+            const cartId = cartData.id;
+            
+            // Удаляем все элементы корзины
+            if (cartData.items && cartData.items.length > 0) {
+              for (const item of cartData.items) {
+                await fetch(`${API_BASE_URL}/cart/${cartId}/remove_item/?cart_item_id=${item.id}`, {
+                  method: 'DELETE',
+                  credentials: 'include',
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Error clearing cart:", err);
+        }
+        
+        // Очищаем локальную корзину и отправляем событие
+        setCart([]);
+        window.dispatchEvent(new Event('cartUpdated'));
+        
         // Проверяем, зарегистрирован ли пользователь
         // Если нет - редиректим на страницу аккаунта, где можно зарегистрироваться
         setTimeout(() => {
@@ -405,8 +433,7 @@ export default function OrderPage() {
           });
         }, 2000);
         
-        // Очищаем корзину и форму
-        setCart([]);
+        // Очищаем форму
         setFormData({
           name: "",
           email: "",

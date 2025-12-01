@@ -442,6 +442,27 @@ class OrderViewSet(viewsets.ModelViewSet):
             order.delivery_distance = None
             order.save()
         
+        # Очищаем корзину после успешного создания заказа
+        try:
+            if request.user.is_authenticated:
+                # Для авторизованных пользователей
+                cart = Cart.objects.filter(customer__user=request.user).first()
+            else:
+                # Для неавторизованных - используем session_key
+                session_key = request.session.session_key
+                if not session_key:
+                    request.session.create()
+                    session_key = request.session.session_key
+                cart = Cart.objects.filter(session_key=session_key).first()
+            
+            if cart:
+                # Удаляем все элементы корзины
+                cart.items.all().delete()
+                logger.info(f"Cart cleared after order {order.id} creation")
+        except Exception as e:
+            # Не прерываем создание заказа, если не удалось очистить корзину
+            logger.error(f"Error clearing cart after order {order.id} creation: {str(e)}")
+        
         # Здесь будет обработка через OpenAI (в задаче Celery)
         # КРИТИЧНО: Делаем вызов полностью неблокирующим - не ждем подключения к Redis
         # Запускаем в отдельном потоке с таймаутом, чтобы не блокировать ответ клиенту
