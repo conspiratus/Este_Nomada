@@ -12,6 +12,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 urlpatterns = [
     path('admin/', custom_admin_site.urls),  # Используем кастомный админ-сайт
     path('api/', include('api.urls')),
+    path('api/telegram/webhook/', include('api.telegram_urls')),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('chef/', include('core.urls')),
 ]
