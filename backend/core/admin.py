@@ -14,7 +14,8 @@ from .models import (
     HeroImage, HeroButton, HeroButtonTranslation, HeroSettings, Settings, Order, OrderItem, OrderReview, InstagramPost, Translation,
     ContentSection, ContentSectionTranslation, FooterSection, FooterSectionTranslation,
     DishTTK, TTKVersionHistory, Customer, Cart, CartItem, Favorite, DeliverySettings,
-    Stock, Supplier, PriceSource, IngredientCategory, Ingredient, MenuItemIngredient, IngredientStock
+    Stock, Supplier, PriceSource, IngredientCategory, Ingredient, MenuItemIngredient, IngredientStock,
+    TelegramAdminBotSettings, TelegramAdmin
 )
 
 # Стандартная модель User уже зарегистрирована в Django Admin
@@ -182,7 +183,7 @@ class CustomAdminSite(AdminSite):
             return 'ТТК блюд'
         
         # Интеграции
-        elif model_name in ['InstagramPost']:
+        elif model_name in ['InstagramPost', 'TelegramAdminBotSettings', 'TelegramAdmin']:
             return 'Интеграции'
         
         # Другое (вспомогательные модели - переводы и т.д.)
@@ -1374,6 +1375,81 @@ class MenuItemIngredientAdmin(admin.ModelAdmin):
     unit_display.short_description = 'Единица измерения'
 
 
+class TelegramAdminBotSettingsAdmin(admin.ModelAdmin):
+    """Админка для настроек админского Telegram бота."""
+    def has_add_permission(self, request):
+        # Разрешаем только один экземпляр
+        return not TelegramAdminBotSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    readonly_fields = ['updated_at']
+    fieldsets = (
+        ('Основные настройки', {
+            'fields': ('enabled', 'bot_token'),
+            'description': 'Включите бота и укажите токен от @BotFather'
+        }),
+        ('Уведомления', {
+            'fields': (
+                'notify_new_order',
+                'notify_order_status_change',
+                'notify_new_customer',
+                'notify_review'
+            ),
+            'description': 'Выберите события, о которых нужно уведомлять'
+        }),
+        ('Ежедневные отчеты', {
+            'fields': ('daily_reports_enabled', 'daily_reports_time'),
+            'description': 'Настройки автоматических отчетов об остатках'
+        }),
+        ('Пороги для остатков блюд', {
+            'fields': ('menu_item_low_stock_threshold',),
+            'description': 'Минимальное количество порций для предупреждения'
+        }),
+        ('Пороги для остатков ингредиентов', {
+            'fields': (
+                'ingredient_threshold_kg',
+                'ingredient_threshold_g',
+                'ingredient_threshold_l',
+                'ingredient_threshold_ml',
+                'ingredient_threshold_pcs'
+            ),
+            'description': 'Пороги для разных единиц измерения ингредиентов'
+        }),
+        ('Дата обновления', {
+            'fields': ('updated_at',),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+class TelegramAdminAdmin(admin.ModelAdmin):
+    """Админка для админов Telegram бота."""
+    list_display = ['user', 'telegram_chat_id', 'username', 'first_name', 'last_name', 'authorized', 'created_at']
+    list_filter = ['authorized', 'created_at']
+    search_fields = ['user__username', 'user__email', 'telegram_chat_id', 'username', 'first_name', 'last_name']
+    list_editable = ['authorized']
+    readonly_fields = ['created_at', 'updated_at']
+    fieldsets = (
+        ('Пользователь', {
+            'fields': ('user',)
+        }),
+        ('Telegram информация', {
+            'fields': ('telegram_chat_id', 'username', 'first_name', 'last_name', 'authorized'),
+            'description': 'Информация о пользователе в Telegram. Установите галочку "Авторизован" для разрешения получения уведомлений.'
+        }),
+        ('Даты', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_queryset(self, request):
+        """Оптимизируем запросы."""
+        return super().get_queryset(request).select_related('user')
+
+
 # Регистрируем все модели в кастомном админ-сайте вместо стандартного
 custom_admin_site.register(Story, StoryAdmin)
 custom_admin_site.register(MenuItemCategory, MenuItemCategoryAdmin)
@@ -1401,4 +1477,6 @@ custom_admin_site.register(IngredientCategory, IngredientCategoryAdmin)
 custom_admin_site.register(Ingredient, IngredientAdmin)
 custom_admin_site.register(IngredientStock, IngredientStockAdmin)
 custom_admin_site.register(MenuItemIngredient, MenuItemIngredientAdmin)
+custom_admin_site.register(TelegramAdminBotSettings, TelegramAdminBotSettingsAdmin)
+custom_admin_site.register(TelegramAdmin, TelegramAdminAdmin)
 

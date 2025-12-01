@@ -1713,3 +1713,195 @@ class DeliverySettings(models.Model):
                 'cost': None
             }
 
+
+# ============================================
+# TELEGRAM ADMIN BOT
+# ============================================
+
+class TelegramAdminBotSettings(models.Model):
+    """Настройки админского Telegram бота."""
+    bot_token = EncryptedField(
+        blank=True,
+        null=True,
+        verbose_name='Токен бота',
+        help_text='Токен бота от @BotFather'
+    )
+    enabled = models.BooleanField(
+        default=False,
+        verbose_name='Включен',
+        help_text='Включить отправку уведомлений через бота'
+    )
+    
+    # Настройки уведомлений
+    notify_new_order = models.BooleanField(
+        default=True,
+        verbose_name='Уведомлять о новых заказах'
+    )
+    notify_order_status_change = models.BooleanField(
+        default=True,
+        verbose_name='Уведомлять об изменении статуса заказа'
+    )
+    notify_new_customer = models.BooleanField(
+        default=True,
+        verbose_name='Уведомлять о новых пользователях'
+    )
+    notify_review = models.BooleanField(
+        default=True,
+        verbose_name='Уведомлять об отзывах'
+    )
+    
+    # Настройки ежедневных отчетов
+    daily_reports_enabled = models.BooleanField(
+        default=True,
+        verbose_name='Включить ежедневные отчеты'
+    )
+    daily_reports_time = models.TimeField(
+        default='09:00',
+        verbose_name='Время отправки отчетов',
+        help_text='Время отправки ежедневных отчетов (часовой пояс сервера)'
+    )
+    
+    # Пороги для остатков (блюда)
+    menu_item_low_stock_threshold = models.IntegerField(
+        default=5,
+        validators=[MinValueValidator(0)],
+        verbose_name='Порог низкого остатка блюд (порций)',
+        help_text='Минимальное количество порций для предупреждения'
+    )
+    
+    # Пороги для остатков ингредиентов (по единицам измерения)
+    ingredient_threshold_kg = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        default=1.0,
+        validators=[MinValueValidator(0)],
+        verbose_name='Порог для кг',
+        help_text='Порог низкого остатка для ингредиентов в килограммах'
+    )
+    ingredient_threshold_g = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        default=500.0,
+        validators=[MinValueValidator(0)],
+        verbose_name='Порог для г',
+        help_text='Порог низкого остатка для ингредиентов в граммах'
+    )
+    ingredient_threshold_l = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        default=1.0,
+        validators=[MinValueValidator(0)],
+        verbose_name='Порог для л',
+        help_text='Порог низкого остатка для ингредиентов в литрах'
+    )
+    ingredient_threshold_ml = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        default=500.0,
+        validators=[MinValueValidator(0)],
+        verbose_name='Порог для мл',
+        help_text='Порог низкого остатка для ингредиентов в миллилитрах'
+    )
+    ingredient_threshold_pcs = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        default=10.0,
+        validators=[MinValueValidator(0)],
+        verbose_name='Порог для шт/уп/банка/бутылка',
+        help_text='Порог низкого остатка для поштучных товаров'
+    )
+    
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+    
+    class Meta:
+        db_table = 'telegram_admin_bot_settings'
+        verbose_name = 'Настройки админского Telegram бота'
+        verbose_name_plural = 'Настройки админского Telegram бота'
+    
+    def __str__(self):
+        return 'Настройки админского Telegram бота'
+    
+    def save(self, *args, **kwargs):
+        # Разрешаем только один экземпляр
+        self.pk = 1
+        super().save(*args, **kwargs)
+    
+    def delete(self, *args, **kwargs):
+        # Не позволяем удалять настройки
+        pass
+    
+    @classmethod
+    def get_settings(cls):
+        """Получить единственный экземпляр настроек."""
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj
+    
+    def get_threshold_for_unit(self, unit: str) -> float:
+        """Получить порог для указанной единицы измерения."""
+        thresholds = {
+            'кг': float(self.ingredient_threshold_kg),
+            'г': float(self.ingredient_threshold_g),
+            'л': float(self.ingredient_threshold_l),
+            'мл': float(self.ingredient_threshold_ml),
+            'шт': float(self.ingredient_threshold_pcs),
+            'уп': float(self.ingredient_threshold_pcs),
+            'банка': float(self.ingredient_threshold_pcs),
+            'бутылка': float(self.ingredient_threshold_pcs),
+        }
+        return thresholds.get(unit, float(self.ingredient_threshold_pcs))
+
+
+class TelegramAdmin(models.Model):
+    """Связь пользователя с авторизацией в админском Telegram боте."""
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='telegram_admin',
+        verbose_name='Пользователь'
+    )
+    telegram_chat_id = models.BigIntegerField(
+        unique=True,
+        verbose_name='Telegram Chat ID',
+        help_text='ID чата пользователя в Telegram'
+    )
+    authorized = models.BooleanField(
+        default=False,
+        verbose_name='Авторизован',
+        help_text='Пользователь подтвержден для получения уведомлений'
+    )
+    username = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name='Telegram Username',
+        help_text='Имя пользователя в Telegram (если есть)'
+    )
+    first_name = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name='Имя в Telegram'
+    )
+    last_name = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name='Фамилия в Telegram'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Дата обновления')
+    
+    class Meta:
+        db_table = 'telegram_admin'
+        verbose_name = 'Админ Telegram бота'
+        verbose_name_plural = 'Админы Telegram бота'
+        indexes = [
+            models.Index(fields=['telegram_chat_id']),
+            models.Index(fields=['authorized']),
+        ]
+    
+    def __str__(self):
+        name = self.username or f"{self.first_name or ''} {self.last_name or ''}".strip() or f"User {self.user.id}"
+        status = "✓" if self.authorized else "✗"
+        return f"{status} {name} ({self.telegram_chat_id})"
+
