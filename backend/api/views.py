@@ -405,12 +405,16 @@ class OrderViewSet(viewsets.ModelViewSet):
         # Если не было рассчитано - используем базовую стоимость или 0
         if not is_pickup:
             postal_code = data.get('postal_code')
-            delivery_cost_from_request = data.get('delivery_cost', 0)
+            # Важно: проверяем наличие ключа, а не значение, чтобы различать 0 (бесплатная доставка) и отсутствие значения
+            delivery_cost_provided = 'delivery_cost' in data
+            delivery_cost_from_request = data.get('delivery_cost')
             
             # Используем стоимость доставки, которая уже была рассчитана на фронтенде
-            if delivery_cost_from_request:
+            if delivery_cost_provided:
                 try:
-                    order.delivery_cost = float(delivery_cost_from_request)
+                    # Если delivery_cost передан (даже если 0), используем его
+                    # 0 означает бесплатную доставку (например, при превышении порога)
+                    order.delivery_cost = float(delivery_cost_from_request) if delivery_cost_from_request is not None else 0
                     # Если есть расстояние из запроса - сохраняем его
                     if data.get('delivery_distance'):
                         order.delivery_distance = float(data.get('delivery_distance'))
@@ -418,7 +422,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     if data.get('address'):
                         order.address = data.get('address')
                     order.save()
-                except (ValueError, TypeError):
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Error parsing delivery_cost for order {order.id}: {str(e)}")
                     # Если не удалось преобразовать - используем базовую стоимость
                     try:
                         delivery_settings = DeliverySettings.get_settings()
@@ -428,7 +433,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                         order.delivery_cost = 0
                         order.save()
             else:
-                # Если стоимость не была рассчитана - используем базовую
+                # Если стоимость не была рассчитана на фронтенде - используем базовую
                 try:
                     delivery_settings = DeliverySettings.get_settings()
                     order.delivery_cost = float(delivery_settings.base_delivery_cost) if delivery_settings.base_delivery_cost else 0
