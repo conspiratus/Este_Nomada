@@ -78,11 +78,28 @@ def notify_new_order(order) -> None:
     if not bot_settings.enabled or not bot_settings.notify_new_order:
         return
     
-    # Формируем сообщение о заказе
-    items_text = "\n".join([
-        f"  • {item.menu_item.name} × {item.quantity} = {item.subtotal:.2f}€"
-        for item in order.order_items.all()
-    ])
+    # Получаем элементы заказа
+    try:
+        order_items = list(order.order_items.all())
+    except Exception:
+        order_items = []
+    
+    # Формируем список блюд
+    if order_items:
+        items_text = "\n".join([
+            f"  • {item.menu_item.name} × {item.quantity} = {item.subtotal:.2f}€"
+            for item in order_items
+        ])
+    else:
+        items_text = "  (Блюда не найдены)"
+    
+    # Определяем адрес доставки
+    if order.is_pickup:
+        address_text = "🚶 <b>Самовывоз</b>"
+    elif order.postal_code or order.address:
+        address_text = f"{order.postal_code or ''} {order.address or ''}".strip()
+    else:
+        address_text = "Не указано"
     
     message = f"""
 🆕 <b>Новый заказ #{order.id}</b>
@@ -91,7 +108,7 @@ def notify_new_order(order) -> None:
 📧 <b>Email:</b> {order.email or 'Не указано'}
 📱 <b>Телефон:</b> {order.phone or 'Не указано'}
 
-📍 <b>Адрес:</b> {order.postal_code or ''} {order.address or 'Не указано'}
+📍 <b>Адрес:</b> {address_text}
 
 🛒 <b>Блюда:</b>
 {items_text}
