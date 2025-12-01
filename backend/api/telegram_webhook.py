@@ -208,3 +208,68 @@ def handle_message(message: dict):
     except Exception as e:
         logger.error(f"Error handling message: {str(e)}", exc_info=True)
 
+
+def handle_main_menu(callback_id: str, chat_id: int, message_id: int):
+    """
+    Показать главное меню.
+    """
+    try:
+        keyboard = get_main_menu_keyboard()
+        message = """
+👋 <b>Главное меню</b>
+
+Выберите раздел:
+"""
+        edit_message_text(chat_id, message_id, message, reply_markup=keyboard)
+        answer_callback_query(callback_id)
+    except Exception as e:
+        logger.error(f"Error showing main menu: {str(e)}", exc_info=True)
+        answer_callback_query(callback_id, "❌ Ошибка при отображении меню", show_alert=True)
+
+
+def handle_orders_list(callback_id: str, chat_id: int, message_id: int, page: int):
+    """
+    Показать список заказов с пагинацией.
+    """
+    try:
+        keyboard, message = get_orders_list_keyboard(page)
+        edit_message_text(chat_id, message_id, message, reply_markup=keyboard)
+        answer_callback_query(callback_id)
+    except Exception as e:
+        logger.error(f"Error showing orders list: {str(e)}", exc_info=True)
+        answer_callback_query(callback_id, f"❌ Ошибка: {str(e)}", show_alert=True)
+
+
+def handle_order_detail(callback_id: str, chat_id: int, message_id: int, order_id: int):
+    """
+    Показать детали заказа.
+    """
+    try:
+        # Получаем заказ
+        try:
+            order = Order.objects.prefetch_related('order_items__menu_item').get(pk=order_id)
+        except Order.DoesNotExist:
+            answer_callback_query(callback_id, f"❌ Заказ #{order_id} не найден", show_alert=True)
+            return
+        
+        # Форматируем детали заказа
+        message = format_order_details(order)
+        
+        # Создаем keyboard с кнопками управления статусом и возврата
+        status_keyboard = get_order_status_keyboard(order.id, order.status)
+        
+        # Добавляем кнопку возврата к списку заказов
+        back_button = [{'text': '🔙 К списку заказов', 'callback_data': 'menu_orders_page_0'}]
+        if 'inline_keyboard' in status_keyboard:
+            status_keyboard['inline_keyboard'].append(back_button)
+        else:
+            status_keyboard['inline_keyboard'] = [back_button]
+        
+        # Редактируем сообщение
+        edit_message_text(chat_id, message_id, message, reply_markup=status_keyboard)
+        answer_callback_query(callback_id)
+        
+    except Exception as e:
+        logger.error(f"Error showing order detail: {str(e)}", exc_info=True)
+        answer_callback_query(callback_id, f"❌ Ошибка: {str(e)}", show_alert=True)
+
