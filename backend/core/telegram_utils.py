@@ -170,7 +170,7 @@ def get_main_menu_keyboard() -> dict:
     }
 
 
-def get_orders_list_keyboard(page: int = 0, orders_per_page: int = 5) -> tuple[dict, str]:
+def get_orders_list_keyboard(page: int = 0, orders_per_page: int = 5):
     """
     Создать список заказов с пагинацией.
     
