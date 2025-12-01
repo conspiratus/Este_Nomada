@@ -78,18 +78,27 @@ def notify_new_order(order) -> None:
     if not bot_settings.enabled or not bot_settings.notify_new_order:
         return
     
-    # Получаем элементы заказа
+    # Получаем элементы заказа с оптимизацией запросов
     try:
-        order_items = list(order.order_items.all())
-    except Exception:
+        from django.db.models import Prefetch
+        order_items = list(order.order_items.select_related('menu_item').all())
+    except Exception as e:
+        logger.error(f"Error loading order items for order {order.id}: {str(e)}")
         order_items = []
     
     # Формируем список блюд
     if order_items:
-        items_text = "\n".join([
-            f"  • {item.menu_item.name} × {item.quantity} = {item.subtotal:.2f}€"
-            for item in order_items
-        ])
+        items_list = []
+        for item in order_items:
+            try:
+                item_name = item.menu_item.name if item.menu_item else f"Блюдо #{item.menu_item_id}"
+                item_price = item.menu_item.price if item.menu_item and item.menu_item.price else 0
+                subtotal = float(item_price) * item.quantity
+                items_list.append(f"  • {item_name} × {item.quantity} = {subtotal:.2f}€")
+            except Exception as e:
+                logger.error(f"Error processing order item {item.id}: {str(e)}")
+                items_list.append(f"  • Блюдо × {item.quantity} (ошибка получения данных)")
+        items_text = "\n".join(items_list) if items_list else "  (Блюда не найдены)"
     else:
         items_text = "  (Блюда не найдены)"
     
