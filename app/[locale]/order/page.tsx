@@ -358,7 +358,7 @@ export default function OrderPage() {
         address: formData.is_pickup ? '' : (deliveryInfo?.address || formData.address),
         comment: formData.comment,
         delivery_cost: formData.is_pickup ? 0 : (deliveryInfo?.cost || 0),
-        delivery_distance: formData.is_pickup ? null : (deliveryInfo?.distance || null),
+        delivery_distance: formData.is_pickup ? null : (deliveryInfo?.distance ? Number(deliveryInfo.distance.toFixed(2)) : null),
         selected_dishes: selectedDishes,
       };
 

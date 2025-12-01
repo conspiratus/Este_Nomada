@@ -79,28 +79,44 @@ def notify_new_order(order) -> None:
         return
     
     # Получаем элементы заказа с оптимизацией запросов
+    # Важно: перезагружаем order из БД, чтобы получить свежие order_items
     try:
-        from django.db.models import Prefetch
-        order_items = list(order.order_items.select_related('menu_item').all())
+        from core.models import Order
+        # Перезагружаем заказ с prefetch_related для оптимизации
+        order = Order.objects.prefetch_related('order_items__menu_item').get(pk=order.pk)
+        order_items = list(order.order_items.all())
     except Exception as e:
         logger.error(f"Error loading order items for order {order.id}: {str(e)}")
-        order_items = []
+        # Пробуем загрузить без оптимизации
+        try:
+            order_items = list(order.order_items.all())
+        except Exception as e2:
+            logger.error(f"Error loading order items (fallback) for order {order.id}: {str(e2)}")
+            order_items = []
     
     # Формируем список блюд
     if order_items:
         items_list = []
         for item in order_items:
             try:
+                # Загружаем menu_item если не загружен
+                if not hasattr(item, '_menu_item_loaded'):
+                    try:
+                        item.menu_item  # Триггерим загрузку
+                    except:
+                        pass
+                
                 item_name = item.menu_item.name if item.menu_item else f"Блюдо #{item.menu_item_id}"
-                item_price = item.menu_item.price if item.menu_item and item.menu_item.price else 0
-                subtotal = float(item_price) * item.quantity
+                item_price = float(item.menu_item.price) if item.menu_item and item.menu_item.price else 0
+                subtotal = item_price * item.quantity
                 items_list.append(f"  • {item_name} × {item.quantity} = {subtotal:.2f}€")
             except Exception as e:
                 logger.error(f"Error processing order item {item.id}: {str(e)}")
-                items_list.append(f"  • Блюдо × {item.quantity} (ошибка получения данных)")
+                items_list.append(f"  • Блюдо #{item.menu_item_id} × {item.quantity} (ошибка получения данных)")
         items_text = "\n".join(items_list) if items_list else "  (Блюда не найдены)"
     else:
         items_text = "  (Блюда не найдены)"
+        logger.warning(f"No order items found for order {order.id}")
     
     # Определяем адрес доставки
     if order.is_pickup:
