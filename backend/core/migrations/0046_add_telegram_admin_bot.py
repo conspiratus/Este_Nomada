@@ -8,8 +8,7 @@ from django.core.validators import MinValueValidator
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0044_add_price_source'),
-        ('core', '0045_rename_hero_button_active_order_idx_hero_button_active_e451a7_idx_and_more'),
+        ('core', '0047_merge_telegram_and_ttk'),
         ('auth', '0012_alter_user_first_name_max_length'),
     ]
 
