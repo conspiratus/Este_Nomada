@@ -18,11 +18,10 @@ logger = logging.getLogger(__name__)
 @receiver(post_save, sender=Order)
 def order_created(sender, instance, created, **kwargs):
     """Обработчик создания нового заказа."""
-    if created:
-        try:
-            notify_new_order(instance)
-        except Exception as e:
-            logger.error(f"Error notifying about new order {instance.id}: {str(e)}")
+    # НЕ отправляем уведомление здесь, так как order_items еще не созданы
+    # Уведомление отправляется вручную в OrderViewSet.create после создания всех order_items
+    # Это гарантирует, что все данные заказа готовы перед отправкой уведомления
+    pass
 
 
 # Временное хранилище для старого статуса заказа
