@@ -154,6 +154,160 @@ def send_notification_to_authorized_admins(message: str) -> int:
     return sent_count
 
 
+def get_main_menu_keyboard() -> dict:
+    """
+    Создать главное меню бота.
+    
+    Returns:
+        Словарь с inline keyboard markup
+    """
+    return {
+        'inline_keyboard': [
+            [{'text': '📋 Текущие заказы', 'callback_data': 'menu_orders_page_0'}],
+            [{'text': '🍽️ Готовая продукция', 'callback_data': 'menu_stock'}],
+            [{'text': '📦 Склад', 'callback_data': 'menu_warehouse'}],
+        ]
+    }
+
+
+def get_orders_list_keyboard(page: int = 0, orders_per_page: int = 5) -> tuple[dict, str]:
+    """
+    Создать список заказов с пагинацией.
+    
+    Args:
+        page: Номер страницы (начиная с 0)
+        orders_per_page: Количество заказов на странице
+    
+    Returns:
+        Tuple (keyboard, message_text)
+    """
+    from core.models import Order
+    
+    # Получаем все заказы, отсортированные по дате создания (новые первые)
+    all_orders = Order.objects.select_related('customer').prefetch_related('order_items__menu_item').order_by('-created_at')
+    total_orders = all_orders.count()
+    
+    # Вычисляем пагинацию
+    start_idx = page * orders_per_page
+    end_idx = start_idx + orders_per_page
+    orders = list(all_orders[start_idx:end_idx])
+    
+    # Формируем текст сообщения
+    if total_orders == 0:
+        message = "📋 <b>Текущие заказы</b>\n\nЗаказов пока нет."
+        keyboard = {'inline_keyboard': [[{'text': '🔙 Главное меню', 'callback_data': 'menu_main'}]]}
+        return keyboard, message
+    
+    message = f"📋 <b>Текущие заказы</b>\n\n"
+    message += f"Страница {page + 1} из {(total_orders - 1) // orders_per_page + 1}\n"
+    message += f"Всего заказов: {total_orders}\n\n"
+    
+    # Формируем кнопки для заказов
+    keyboard_buttons = []
+    for order in orders:
+        # Получаем имя клиента
+        customer_name = order.name if order.name else (order.customer.name if order.customer else "Без имени")
+        # Ограничиваем длину имени для кнопки
+        if len(customer_name) > 20:
+            customer_name = customer_name[:17] + "..."
+        
+        # Получаем общую стоимость
+        total = order.get_total()
+        
+        # Формируем текст кнопки: #ID Имя Стоимость€
+        button_text = f"#{order.id} {customer_name} {total:.2f}€"
+        # Telegram ограничивает длину текста кнопки до 64 символов
+        if len(button_text) > 64:
+            button_text = f"#{order.id} {customer_name[:50-len(f' {total:.2f}€')]} {total:.2f}€"
+        
+        keyboard_buttons.append([{'text': button_text, 'callback_data': f'order_detail_{order.id}'}])
+    
+    # Добавляем кнопки навигации
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append({'text': '◀️ Назад', 'callback_data': f'menu_orders_page_{page - 1}'})
+    if end_idx < total_orders:
+        nav_buttons.append({'text': 'Далее ▶️', 'callback_data': f'menu_orders_page_{page + 1}'})
+    
+    if nav_buttons:
+        keyboard_buttons.append(nav_buttons)
+    
+    # Кнопка возврата в главное меню
+    keyboard_buttons.append([{'text': '🔙 Главное меню', 'callback_data': 'menu_main'}])
+    
+    keyboard = {'inline_keyboard': keyboard_buttons}
+    return keyboard, message
+
+
+def format_order_details(order) -> str:
+    """
+    Форматировать детальную информацию о заказе.
+    
+    Args:
+        order: Объект Order
+    
+    Returns:
+        Отформатированная строка с информацией о заказе
+    """
+    # Получаем элементы заказа
+    order_items = list(order.order_items.select_related('menu_item').all())
+    
+    # Формируем список блюд
+    if order_items:
+        items_list = []
+        for item in order_items:
+            try:
+                item_name = item.menu_item.name if item.menu_item else f"Блюдо #{item.menu_item_id}"
+                item_price = float(item.menu_item.price) if item.menu_item and item.menu_item.price else 0
+                subtotal = item_price * item.quantity
+                items_list.append(f"  • {item_name} × {item.quantity} = {subtotal:.2f}€")
+            except Exception as e:
+                logger.error(f"Error processing order item {item.id}: {str(e)}")
+                items_list.append(f"  • Блюдо #{item.menu_item_id} × {item.quantity} (ошибка)")
+        items_text = "\n".join(items_list)
+    else:
+        items_text = "  (Блюда не найдены)"
+    
+    # Определяем адрес доставки
+    if order.is_pickup:
+        address_text = "🚶 <b>Самовывоз</b>"
+    elif order.postal_code or order.address:
+        address_text = f"{order.postal_code or ''} {order.address or ''}".strip()
+    else:
+        address_text = "Не указано"
+    
+    # Получаем имя клиента
+    customer_name = order.name if order.name else (order.customer.name if order.customer else "Не указано")
+    
+    # Статус заказа
+    status_names = dict(order.STATUS_CHOICES)
+    status_text = status_names.get(order.status, order.status)
+    
+    message = f"""
+📦 <b>Заказ #{order.id}</b>
+
+👤 <b>Клиент:</b> {customer_name}
+📧 <b>Email:</b> {order.email or 'Не указано'}
+📱 <b>Телефон:</b> {order.phone or 'Не указано'}
+
+📍 <b>Адрес:</b> {address_text}
+
+🛒 <b>Блюда:</b>
+{items_text}
+
+💰 <b>Итого:</b> {order.get_total():.2f}€
+🚚 <b>Доставка:</b> {order.delivery_cost:.2f}€
+
+📝 <b>Комментарий:</b> {order.comment or 'Нет комментария'}
+
+📊 <b>Статус:</b> {status_text}
+
+⏰ <b>Дата:</b> {order.created_at.strftime('%d.%m.%Y %H:%M')}
+"""
+    
+    return message.strip()
+
+
 def get_order_status_keyboard(order_id: int, current_status: str) -> dict:
     """
     Создать inline keyboard для изменения статуса заказа.

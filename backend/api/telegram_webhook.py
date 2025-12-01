@@ -14,7 +14,10 @@ from core.telegram_utils import (
     answer_callback_query,
     edit_message_text,
     get_order_status_keyboard,
-    send_telegram_message
+    send_telegram_message,
+    get_main_menu_keyboard,
+    get_orders_list_keyboard,
+    format_order_details
 )
 
 logger = logging.getLogger(__name__)
@@ -83,6 +86,23 @@ def handle_callback_query(callback_query: dict):
                 handle_order_status_change(callback_id, chat_id, message_id, order_id, new_status, callback_query['message']['text'])
             else:
                 answer_callback_query(callback_id, "❌ Неверный формат команды", show_alert=True)
+        # Главное меню
+        elif callback_data == 'menu_main':
+            handle_main_menu(callback_id, chat_id, message_id)
+        # Список заказов
+        elif callback_data.startswith('menu_orders_page_'):
+            page = int(callback_data.split('_')[3])
+            handle_orders_list(callback_id, chat_id, message_id, page)
+        # Детали заказа
+        elif callback_data.startswith('order_detail_'):
+            order_id = int(callback_data.split('_')[2])
+            handle_order_detail(callback_id, chat_id, message_id, order_id)
+        # Готовая продукция (заглушка)
+        elif callback_data == 'menu_stock':
+            answer_callback_query(callback_id, "🍽️ Раздел 'Готовая продукция' в разработке", show_alert=True)
+        # Склад (заглушка)
+        elif callback_data == 'menu_warehouse':
+            answer_callback_query(callback_id, "📦 Раздел 'Склад' в разработке", show_alert=True)
         else:
             answer_callback_query(callback_id, "❌ Неизвестная команда", show_alert=True)
             
@@ -163,30 +183,25 @@ def handle_message(message: dict):
         if text.startswith('/'):
             command = text.split()[0] if text.split() else text
             
-            if command == '/start':
+            if command == '/start' or command == '/menu':
+                # Отправляем главное меню
+                keyboard = get_main_menu_keyboard()
                 send_telegram_message(chat_id, """
 👋 <b>Добро пожаловать в админский бот Este Nómada!</b>
 
-Этот бот отправляет уведомления о:
-• Новых заказах
-• Изменении статусов заказов
-• Новых пользователях
-• Отзывах
-
-Вы можете управлять заказами прямо из уведомлений, используя кнопки для изменения статуса.
-
-Для настройки бота используйте админ-панель Django.
-""")
+Выберите раздел:
+""", reply_markup=keyboard)
             elif command == '/help':
+                keyboard = get_main_menu_keyboard()
                 send_telegram_message(chat_id, """
 📖 <b>Доступные команды:</b>
 
-/start - Начать работу с ботом
+/start или /menu - Главное меню
 /help - Показать эту справку
 
 <b>Управление заказами:</b>
-Используйте кнопки в уведомлениях о заказах для изменения их статуса.
-""")
+Используйте кнопки в уведомлениях о заказах или главное меню для управления заказами.
+""", reply_markup=keyboard)
             else:
                 send_telegram_message(chat_id, f"❌ Неизвестная команда: {command}\n\nИспользуйте /help для справки.")
         
