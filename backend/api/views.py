@@ -463,6 +463,16 @@ class OrderViewSet(viewsets.ModelViewSet):
             # Не прерываем создание заказа, если не удалось очистить корзину
             logger.error(f"Error clearing cart after order {order.id} creation: {str(e)}")
         
+        # Отправляем уведомление в Telegram после создания всех order_items
+        # Важно: делаем это после создания всех элементов заказа, чтобы они были доступны
+        try:
+            from core.telegram_utils import notify_new_order
+            # Перезагружаем заказ с order_items для уведомления
+            order.refresh_from_db()
+            notify_new_order(order)
+        except Exception as e:
+            logger.error(f"Error sending Telegram notification for order {order.id}: {str(e)}")
+        
         # Здесь будет обработка через OpenAI (в задаче Celery)
         # КРИТИЧНО: Делаем вызов полностью неблокирующим - не ждем подключения к Redis
         # Запускаем в отдельном потоке с таймаутом, чтобы не блокировать ответ клиенту
