@@ -653,14 +653,19 @@ class OrderAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'updated_at', 'email_display', 'phone_display', 'total_display']
     inlines = [OrderItemInline]
     fieldsets = (
+        ('Статус заказа', {
+            'fields': ('status',)
+        }),
         ('Клиент', {
             'fields': ('customer', 'name', 'email', 'email_display', 'phone', 'phone_display')
         }),
         ('Адрес доставки', {
-            'fields': ('postal_code', 'address', 'delivery_cost', 'delivery_distance')
+            'fields': ('postal_code', 'address', 'delivery_cost', 'delivery_distance'),
+            'classes': ('collapse',)
         }),
         ('Информация о заказе', {
-            'fields': ('comment', 'status', 'total_display')
+            'fields': ('comment', 'total_display'),
+            'classes': ('collapse',)
         }),
         ('AI обработка', {
             'fields': ('ai_response',),
