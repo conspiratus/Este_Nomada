@@ -120,7 +120,7 @@ jobs:
             exit 1
           }
           echo "📤 Copying file via SCP..."
-          sshpass -e scp -v -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30 \
+          sshpass -e scp -v -P 22 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30 \
             deploy.tar.gz ${{ secrets.PROD_SERVER_USER }}@${{ secrets.PROD_SERVER_HOST }}:/tmp/deploy.tar.gz || {
             echo "❌ SCP upload failed"
             exit 1
