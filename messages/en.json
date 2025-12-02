@@ -157,7 +157,8 @@
     "reviewPlaceholder": "Leave your review about the order...",
     "submitReview": "Submit Review",
     "submitting": "Submitting...",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "logout": "Logout"
   },
   "verifyEmail": {
     "verifying": "Verifying Email",

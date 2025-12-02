@@ -157,7 +157,8 @@
     "reviewPlaceholder": "Deja tu reseña sobre el pedido...",
     "submitReview": "Enviar Reseña",
     "submitting": "Enviando...",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "logout": "Cerrar sesión"
   },
   "verifyEmail": {
     "verifying": "Verificando Email",

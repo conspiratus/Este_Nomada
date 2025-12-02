@@ -157,7 +157,8 @@
     "reviewPlaceholder": "Оставьте ваш отзыв о заказе...",
     "submitReview": "Отправить отзыв",
     "submitting": "Отправка...",
-    "cancel": "Отмена"
+    "cancel": "Отмена",
+    "logout": "Выйти"
   },
   "verifyEmail": {
     "verifying": "Подтверждение email",
