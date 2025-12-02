@@ -105,15 +105,33 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y sshpass
+          sshpass -V || echo "⚠️  sshpass version check failed"
       
       - name: Upload archive via SCP
         env:
           SSHPASS: ${{ secrets.PROD_SERVER_PASSWORD }}
         run: |
           echo "📤 Uploading deploy.tar.gz to server..."
-          sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 22 \
-            deploy.tar.gz ${{ secrets.PROD_SERVER_USER }}@${{ secrets.PROD_SERVER_HOST }}:/tmp/deploy.tar.gz
+          echo "📊 Archive size: $(du -h deploy.tar.gz | cut -f1)"
+          echo "🔍 Testing SSH connection..."
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 \
+            ${{ secrets.PROD_SERVER_USER }}@${{ secrets.PROD_SERVER_HOST }} "echo 'SSH connection OK'" || {
+            echo "❌ SSH connection test failed"
+            exit 1
+          }
+          echo "📤 Copying file via SCP..."
+          sshpass -e scp -v -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30 \
+            deploy.tar.gz ${{ secrets.PROD_SERVER_USER }}@${{ secrets.PROD_SERVER_HOST }}:/tmp/deploy.tar.gz || {
+            echo "❌ SCP upload failed"
+            exit 1
+          }
           echo "✅ Upload completed"
+          echo "🔍 Verifying file on server..."
+          sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            ${{ secrets.PROD_SERVER_USER }}@${{ secrets.PROD_SERVER_HOST }} \
+            "ls -lh /tmp/deploy.tar.gz && echo 'File verified on server'" || {
+            echo "⚠️  File verification failed, but continuing..."
+          }
       
       - name: Extract and deploy on server
         uses: appleboy/ssh-action@v1.0.3
