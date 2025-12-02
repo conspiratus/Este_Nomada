@@ -1440,7 +1440,6 @@ class TelegramAdminAdmin(admin.ModelAdmin):
     search_fields = ['user__username', 'user__email', 'telegram_chat_id', 'username', 'first_name', 'last_name']
     list_editable = ['authorized', 'banned']
     readonly_fields = ['created_at', 'updated_at', 'telegram_chat_id', 'username', 'first_name', 'last_name']
-    autocomplete_fields = ['user']
     fieldsets = (
         ('Информация о пользователе Telegram', {
             'fields': ('telegram_chat_id', 'username', 'first_name', 'last_name', 'user'),
