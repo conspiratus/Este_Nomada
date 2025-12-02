@@ -171,31 +171,42 @@ jobs:
             echo "📊 Использование диска до очистки:"
             df -h / | tail -1
             
-            # Удаляем старые бэкапы (оставляем только последние 3)
-            echo "🗑️  Удаляем старые бэкапы (оставляем последние 3)..."
+            # Удаляем старые бэкапы (оставляем только последние 2, используем sudo)
+            echo "🗑️  Удаляем старые бэкапы (оставляем последние 2)..."
             if [ -d "/tmp" ]; then
               cd /tmp
-              ls -t backup-*.tar.gz 2>/dev/null | tail -n +4 | xargs -r rm -f || true
-              ls -t backup-feature-*.tar.gz 2>/dev/null | tail -n +4 | xargs -r rm -f || true
-              ls -t db_backup_*.sql 2>/dev/null | tail -n +4 | xargs -r rm -f || true
+              # Используем sudo для удаления, так как файлы созданы с sudo
+              ls -t backup-*.tar.gz 2>/dev/null | tail -n +3 | xargs -r sudo rm -f || true
+              ls -t backup-feature-*.tar.gz 2>/dev/null | tail -n +3 | xargs -r sudo rm -f || true
+              ls -t db_backup_*.sql 2>/dev/null | tail -n +3 | xargs -r sudo rm -f || true
+              # Также удаляем старые бэкапы БД из директории проекта
+              if [ -d "$BACKEND_DIR" ]; then
+                find "$BACKEND_DIR" -name "db.sqlite3.backup-*" -mtime +1 -exec sudo rm -f {} + 2>/dev/null || true
+              fi
               echo "✅ Старые бэкапы удалены"
             fi
             
-            # Удаляем старые архивы deploy.tar.gz (оставляем только последний)
+            # Удаляем старые архивы deploy.tar.gz (используем sudo)
             echo "🗑️  Удаляем старые архивы deploy.tar.gz..."
-            if [ -f "/tmp/deploy.tar.gz" ]; then
-              # Оставляем текущий, удаляем только если есть дубликаты
-              find /tmp -name "deploy*.tar.gz" -mtime +1 -delete 2>/dev/null || true
-              echo "✅ Старые архивы удалены"
-            fi
+            # Удаляем все старые deploy.tar.gz кроме текущего (если он есть)
+            find /tmp -name "deploy*.tar.gz" -mtime +0 -exec sudo rm -f {} + 2>/dev/null || true
+            echo "✅ Старые архивы удалены"
             
             # Очищаем кэш Python (__pycache__, *.pyc)
             echo "🗑️  Очищаем кэш Python..."
             if [ -d "$BACKEND_DIR" ]; then
-              find "$BACKEND_DIR" -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-              find "$BACKEND_DIR" -name "*.pyc" -delete 2>/dev/null || true
-              find "$BACKEND_DIR" -name "*.pyo" -delete 2>/dev/null || true
+              find "$BACKEND_DIR" -type d -name __pycache__ -exec sudo rm -rf {} + 2>/dev/null || true
+              find "$BACKEND_DIR" -name "*.pyc" -exec sudo rm -f {} + 2>/dev/null || true
+              find "$BACKEND_DIR" -name "*.pyo" -exec sudo rm -f {} + 2>/dev/null || true
               echo "✅ Кэш Python очищен"
+            fi
+            
+            # Удаляем старые виртуальные окружения если они есть
+            echo "🗑️  Проверяем старые venv..."
+            if [ -d "$BACKEND_DIR" ]; then
+              # Удаляем старые venv если они не используются
+              find "$BACKEND_DIR" -type d -name "venv*" -mtime +7 -exec sudo rm -rf {} + 2>/dev/null || true
+              echo "✅ Старые venv проверены"
             fi
             
             # Очищаем старые логи (оставляем последние 100 строк)
@@ -207,12 +218,25 @@ jobs:
               echo "✅ Старые логи удалены"
             fi
             
-            # Очищаем временные файлы
+            # Очищаем временные файлы (более агрессивно)
             echo "🗑️  Очищаем временные файлы..."
             sudo rm -rf /tmp/*.tmp 2>/dev/null || true
             sudo rm -rf /tmp/.X* 2>/dev/null || true
-            sudo find /tmp -type f -mtime +7 -delete 2>/dev/null || true
+            # Удаляем файлы старше 1 дня (не 7!)
+            sudo find /tmp -type f -mtime +1 -delete 2>/dev/null || true
+            sudo find /tmp -type d -empty -delete 2>/dev/null || true
             echo "✅ Временные файлы очищены"
+            
+            # Очищаем старые сборки .next если они есть
+            echo "🗑️  Проверяем старые сборки..."
+            if [ -d "$FRONTEND_DIR" ]; then
+              # Если есть старая .next директория, удаляем её перед распаковкой
+              if [ -d "$FRONTEND_DIR/.next" ] && [ -f "/tmp/deploy.tar.gz" ]; then
+                echo "🗑️  Удаляем старую .next директорию перед распаковкой..."
+                sudo rm -rf "$FRONTEND_DIR/.next" 2>/dev/null || true
+                echo "✅ Старая .next удалена"
+              fi
+            fi
             
             # Очищаем старые node_modules если они есть (осторожно!)
             echo "🗑️  Проверяем node_modules..."
