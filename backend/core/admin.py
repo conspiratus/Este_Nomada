@@ -674,14 +674,18 @@ class OrderAdminForm(forms.ModelForm):
 class OrderAdmin(admin.ModelAdmin):
     """Админка для заказов."""
     form = OrderAdminForm
-    list_display = ['id', 'customer', 'name', 'email_display', 'phone_display', 'delivery_cost', 'status', 'created_at']
-    list_filter = ['status', 'created_at']
+    list_display = ['id', 'customer', 'name', 'email_display', 'phone_display', 'delivery_type_display', 'delivery_cost', 'status', 'created_at']
+    list_filter = ['status', 'is_pickup', 'created_at']
     search_fields = ['name', 'email', 'phone', 'comment', 'postal_code']
-    readonly_fields = ['created_at', 'updated_at', 'email_display', 'phone_display', 'total_display']
+    readonly_fields = ['created_at', 'updated_at', 'email_display', 'phone_display', 'total_display', 'delivery_type_display']
     inlines = [OrderItemInline]
     fieldsets = (
         ('Статус заказа', {
             'fields': ('status',)
+        }),
+        ('Тип доставки', {
+            'fields': ('is_pickup', 'delivery_type_display'),
+            'description': 'Тип получения заказа: самовывоз или доставка'
         }),
         ('Клиент', {
             'fields': ('customer', 'name', 'email', 'email_display', 'phone', 'phone_display')
@@ -734,6 +738,14 @@ class OrderAdmin(admin.ModelAdmin):
         """Отображение общей стоимости заказа."""
         return f'{obj.get_total():.2f}€'
     total_display.short_description = 'Общая стоимость'
+    
+    def delivery_type_display(self, obj):
+        """Отображение типа доставки."""
+        if obj.is_pickup:
+            return '🚶 Самовывоз'
+        else:
+            return '🚚 Доставка'
+    delivery_type_display.short_description = 'Тип доставки'
 
 
 class OrderReviewAdmin(admin.ModelAdmin):
