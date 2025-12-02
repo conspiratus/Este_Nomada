@@ -113,6 +113,8 @@ jobs:
           timeout: 300s
           debug: true
           use_insecure_cipher: false
+          overwrite: true
+          rm: false
       
       - name: Extract and deploy on server
         uses: appleboy/ssh-action@v1.0.3

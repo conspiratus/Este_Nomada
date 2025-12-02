@@ -61,6 +61,7 @@ jobs:
       
       - name: Create deployment archive
         run: |
+          echo "📦 Creating deployment archive..."
           tar -czf deploy.tar.gz \
             .next \
             public \
@@ -81,6 +82,8 @@ jobs:
             systemd \
             scripts \
             prerender-manifest.json
+          echo "✅ Archive created: $(du -h deploy.tar.gz | cut -f1)"
+          ls -lh deploy.tar.gz
       
       - name: Check secrets
         run: |
@@ -110,6 +113,8 @@ jobs:
           timeout: 300s
           debug: true
           use_insecure_cipher: false
+          overwrite: true
+          rm: false
       
       - name: Extract and deploy on server
         uses: appleboy/ssh-action@v1.0.3
