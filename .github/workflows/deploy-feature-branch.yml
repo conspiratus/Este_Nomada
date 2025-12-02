@@ -99,7 +99,7 @@ jobs:
           echo "✅ Все секреты настроены"
       
       - name: Deploy to server
-        uses: appleboy/scp-action@master
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.PROD_SERVER_HOST }}
           username: ${{ secrets.PROD_SERVER_USER }}
@@ -108,6 +108,11 @@ jobs:
           source: "deploy.tar.gz"
           target: "/tmp"
           timeout: 300s
+          strip_components: 0
+          debug: true
+          use_insecure_cipher: false
+          command_timeout: 300s
+          script_stop: true
       
       - name: Extract and deploy on server
         uses: appleboy/ssh-action@master
