@@ -470,6 +470,10 @@ def notify_order_status_change(order, old_status: str, new_status: str) -> None:
         'cancelled': '❌',
     }
     
+    status_names = dict(order.STATUS_CHOICES)
+    old_status_text = status_names.get(old_status, old_status)
+    new_status_text = status_names.get(new_status, new_status)
+    
     emoji = status_emoji.get(new_status, '📋')
     
     message = f"""
@@ -477,14 +481,25 @@ def notify_order_status_change(order, old_status: str, new_status: str) -> None:
 
 👤 <b>Клиент:</b> {order.name or 'Не указано'}
 
-📊 <b>Статус:</b> {old_status} → <b>{new_status}</b>
+📊 <b>Статус:</b> {old_status_text} → <b>{new_status_text}</b>
 
 💰 <b>Сумма:</b> {order.get_total():.2f}€
 
 ⏰ <b>Время:</b> {order.updated_at.strftime('%d.%m.%Y %H:%M')}
 """
     
-    send_notification_to_authorized_admins(message.strip())
+    # Создаем keyboard с кнопками для управления заказом и возврата в меню
+    keyboard = get_order_status_keyboard(order.id, new_status, include_menu_button=True)
+    
+    # Добавляем кнопку перехода к списку заказов
+    orders_button = [{'text': '📋 К списку заказов', 'callback_data': 'menu_orders_page_0'}]
+    if 'inline_keyboard' in keyboard:
+        keyboard['inline_keyboard'].append(orders_button)
+    
+    # Отправляем сообщение с кнопками каждому авторизованному админу
+    authorized_admins = TelegramAdmin.objects.filter(authorized=True, banned=False)
+    for admin in authorized_admins:
+        send_telegram_message(admin.telegram_chat_id, message.strip(), reply_markup=keyboard, check_banned=False)
 
 
 def notify_new_customer(customer) -> None:
