@@ -109,12 +109,13 @@ jobs:
           password: ${{ secrets.PROD_SERVER_PASSWORD }}
           port: 22
           source: "deploy.tar.gz"
-          target: "/tmp"
+          target: "/tmp/"
           timeout: 300s
           debug: true
           use_insecure_cipher: false
           overwrite: true
           rm: false
+          tar_tmp_path: "/tmp"
       
       - name: Extract and deploy on server
         uses: appleboy/ssh-action@v1.0.3
