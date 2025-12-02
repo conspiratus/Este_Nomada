@@ -111,11 +111,8 @@ jobs:
           source: "deploy.tar.gz"
           target: "/tmp"
           timeout: 300s
-          strip_components: 0
           debug: true
           use_insecure_cipher: false
-          command_timeout: 300s
-          script_stop: true
       
       - name: Extract and deploy on server
         uses: appleboy/ssh-action@v1.0.3
@@ -127,7 +124,6 @@ jobs:
           timeout: 300s
           debug: true
           use_insecure_cipher: false
-          command_timeout: 300s
           script: |
             set -e  # Прерываем только на критичных ошибках
             
