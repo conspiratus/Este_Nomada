@@ -144,17 +144,40 @@ def handle_order_status_change(callback_id: str, chat_id: int, message_id: int, 
         order.save()
         
         # Обновляем сообщение с новым статусом
-        # Заменяем строку со статусом в тексте сообщения
+        # Если это сообщение с деталями заказа, перезагружаем заказ и переформатируем сообщение
+        # Если это просто уведомление, обновляем только статус
         status_names = dict(Order.STATUS_CHOICES)
-        old_status_text = f"📊 <b>Статус:</b> {status_names.get(old_status, old_status)}"
-        new_status_text = f"📊 <b>Статус:</b> {status_names.get(new_status, new_status)}"
         
-        updated_message = current_message_text.replace(old_status_text, new_status_text)
+        # Проверяем, является ли это сообщением с деталями заказа (содержит полную информацию)
+        if f"📦 <b>Заказ #{order_id}</b>" in current_message_text or f"🆕 <b>Новый заказ #{order_id}</b>" in current_message_text:
+            # Это сообщение с деталями заказа - перезагружаем и переформатируем
+            order.refresh_from_db()
+            order = Order.objects.prefetch_related('order_items__menu_item').get(pk=order_id)
+            updated_message = format_order_details(order)
+            
+            # Создаем keyboard с кнопками управления статусом
+            keyboard = get_order_status_keyboard(order.id, new_status, include_menu_button=True)
+            
+            # Добавляем кнопку возврата к списку заказов, если её нет
+            orders_button = [{'text': '🔙 К списку заказов', 'callback_data': 'menu_orders_page_0'}]
+            if 'inline_keyboard' in keyboard:
+                # Проверяем, есть ли уже кнопка "К списку заказов"
+                has_orders_button = any(
+                    any(btn.get('callback_data') == 'menu_orders_page_0' for btn in row)
+                    for row in keyboard['inline_keyboard']
+                )
+                if not has_orders_button:
+                    keyboard['inline_keyboard'].insert(-1, orders_button)
+        else:
+            # Это простое уведомление - обновляем только статус
+            old_status_text = f"📊 <b>Статус:</b> {status_names.get(old_status, old_status)}"
+            new_status_text = f"📊 <b>Статус:</b> {status_names.get(new_status, new_status)}"
+            updated_message = current_message_text.replace(old_status_text, new_status_text)
+            
+            # Обновляем keyboard (включая кнопку меню)
+            keyboard = get_order_status_keyboard(order.id, new_status, include_menu_button=True)
         
-        # Обновляем keyboard (включая кнопку меню)
-        keyboard = get_order_status_keyboard(order.id, new_status, include_menu_button=True)
-        
-        # Редактируем сообщение
+        # Редактируем сообщение (всегда редактируем существующее, не создаем новое)
         edit_message_text(chat_id, message_id, updated_message, reply_markup=keyboard)
         
         # Отвечаем на callback
