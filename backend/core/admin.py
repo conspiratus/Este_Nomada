@@ -1435,24 +1435,34 @@ class TelegramAdminBotSettingsAdmin(admin.ModelAdmin):
 
 class TelegramAdminAdmin(admin.ModelAdmin):
     """Админка для админов Telegram бота."""
-    list_display = ['user', 'telegram_chat_id', 'username', 'first_name', 'last_name', 'authorized', 'created_at']
-    list_filter = ['authorized', 'created_at']
+    list_display = ['telegram_chat_id', 'username_display', 'authorized', 'banned', 'user', 'created_at']
+    list_filter = ['authorized', 'banned', 'created_at']
     search_fields = ['user__username', 'user__email', 'telegram_chat_id', 'username', 'first_name', 'last_name']
-    list_editable = ['authorized']
-    readonly_fields = ['created_at', 'updated_at']
+    list_editable = ['authorized', 'banned']
+    readonly_fields = ['created_at', 'updated_at', 'telegram_chat_id', 'username', 'first_name', 'last_name']
+    autocomplete_fields = ['user']
     fieldsets = (
-        ('Пользователь', {
-            'fields': ('user',)
+        ('Информация о пользователе Telegram', {
+            'fields': ('telegram_chat_id', 'username', 'first_name', 'last_name', 'user'),
+            'description': 'Информация автоматически обновляется при команде /start'
         }),
-        ('Telegram информация', {
-            'fields': ('telegram_chat_id', 'username', 'first_name', 'last_name', 'authorized'),
-            'description': 'Информация о пользователе в Telegram. Установите галочку "Авторизован" для разрешения получения уведомлений.'
+        ('Статус доступа', {
+            'fields': ('authorized', 'banned'),
+            'description': '<b>Авторизован</b> - пользователь может использовать бота и получать уведомления.<br><b>Забанен</b> - пользователь заблокирован и не получит никаких сообщений от бота.'
         }),
         ('Даты', {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
+    
+    def username_display(self, obj):
+        """Отобразить имя пользователя или chat_id."""
+        if obj.username:
+            return f"@{obj.username}"
+        name = f"{obj.first_name or ''} {obj.last_name or ''}".strip()
+        return name or f"Chat {obj.telegram_chat_id}"
+    username_display.short_description = 'Пользователь'
     
     def get_queryset(self, request):
         """Оптимизируем запросы."""
