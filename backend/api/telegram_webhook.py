@@ -318,20 +318,18 @@ def handle_order_detail(callback_id: str, chat_id: int, message_id: int, order_i
         message = format_order_details(order)
         
         # Создаем keyboard с кнопками управления статусом
-        # include_menu_button=False, так как мы добавим свои кнопки навигации
-        status_keyboard = get_order_status_keyboard(order.id, order.status, include_menu_button=False)
+        # include_menu_button=True, чтобы всегда была кнопка возврата в меню
+        status_keyboard = get_order_status_keyboard(order.id, order.status, include_menu_button=True)
         
-        # Добавляем кнопки навигации
-        nav_buttons = [
-            {'text': '🔙 К списку заказов', 'callback_data': 'menu_orders_page_0'},
-            {'text': '🏠 Главное меню', 'callback_data': 'menu_main'}
-        ]
+        # Добавляем кнопку возврата к списку заказов перед кнопкой меню
+        orders_button = [{'text': '🔙 К списку заказов', 'callback_data': 'menu_orders_page_0'}]
         if 'inline_keyboard' in status_keyboard:
-            status_keyboard['inline_keyboard'].append(nav_buttons)
+            # Вставляем кнопку перед последней (главное меню)
+            status_keyboard['inline_keyboard'].insert(-1, orders_button)
         else:
-            status_keyboard['inline_keyboard'] = [nav_buttons]
+            status_keyboard['inline_keyboard'] = [orders_button]
         
-        # Редактируем сообщение
+        # Редактируем сообщение (всегда редактируем существующее, не создаем новое)
         edit_message_text(chat_id, message_id, message, reply_markup=status_keyboard)
         answer_callback_query(callback_id)
         
