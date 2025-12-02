@@ -7,6 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0047_merge_telegram_and_ttk'),
+        ('core', '0046_add_telegram_admin_bot'),
     ]
 
     operations = [
