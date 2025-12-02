@@ -645,8 +645,35 @@ class OrderItemInline(admin.TabularInline):
 # ============================================
 # Включает: Заказы, Элементы заказов
 
+class OrderAdminForm(forms.ModelForm):
+    """Кастомная форма для заказа с однострочными полями."""
+    name = forms.CharField(
+        max_length=255,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'vTextField'}),
+        label='Имя'
+    )
+    email = forms.EmailField(
+        max_length=255,
+        required=False,
+        widget=forms.EmailInput(attrs={'class': 'vTextField'}),
+        label='Email'
+    )
+    phone = forms.CharField(
+        max_length=50,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'vTextField'}),
+        label='Телефон'
+    )
+    
+    class Meta:
+        model = Order
+        fields = '__all__'
+
+
 class OrderAdmin(admin.ModelAdmin):
     """Админка для заказов."""
+    form = OrderAdminForm
     list_display = ['id', 'customer', 'name', 'email_display', 'phone_display', 'delivery_cost', 'status', 'created_at']
     list_filter = ['status', 'created_at']
     search_fields = ['name', 'email', 'phone', 'comment', 'postal_code']
