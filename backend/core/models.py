@@ -1869,9 +1869,12 @@ class TelegramAdmin(models.Model):
     """Связь пользователя с авторизацией в админском Telegram боте."""
     user = models.OneToOneField(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='telegram_admin',
-        verbose_name='Пользователь'
+        verbose_name='Пользователь',
+        help_text='Связь с пользователем Django (опционально)'
     )
     telegram_chat_id = models.BigIntegerField(
         unique=True,
@@ -1882,6 +1885,11 @@ class TelegramAdmin(models.Model):
         default=False,
         verbose_name='Авторизован',
         help_text='Пользователь подтвержден для получения уведомлений'
+    )
+    banned = models.BooleanField(
+        default=False,
+        verbose_name='Забанен',
+        help_text='Если включено, бот не будет отправлять этому пользователю никакие сообщения'
     )
     username = models.CharField(
         max_length=255,
@@ -1915,7 +1923,12 @@ class TelegramAdmin(models.Model):
         ]
     
     def __str__(self):
-        name = self.username or f"{self.first_name or ''} {self.last_name or ''}".strip() or f"User {self.user.id}"
-        status = "✓" if self.authorized else "✗"
+        name = self.username or f"{self.first_name or ''} {self.last_name or ''}".strip() or f"Chat {self.telegram_chat_id}"
+        if self.banned:
+            status = "🚫"
+        elif self.authorized:
+            status = "✓"
+        else:
+            status = "✗"
         return f"{status} {name} ({self.telegram_chat_id})"
 

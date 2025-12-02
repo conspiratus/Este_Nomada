@@ -10,7 +10,7 @@ from core.models import TelegramAdminBotSettings, TelegramAdmin
 logger = logging.getLogger(__name__)
 
 
-def send_telegram_message(chat_id: int, message: str, parse_mode: str = 'HTML', reply_markup: dict = None) -> bool:
+def send_telegram_message(chat_id: int, message: str, parse_mode: str = 'HTML', reply_markup: dict = None, check_banned: bool = True) -> bool:
     """
     Отправить сообщение в Telegram.
     
@@ -19,6 +19,7 @@ def send_telegram_message(chat_id: int, message: str, parse_mode: str = 'HTML', 
         message: Текст сообщения
         parse_mode: Режим парсинга (HTML или Markdown)
         reply_markup: Inline keyboard markup (опционально)
+        check_banned: Проверять ли статус бана перед отправкой
     
     Returns:
         True если сообщение отправлено успешно, False в противном случае
@@ -28,6 +29,17 @@ def send_telegram_message(chat_id: int, message: str, parse_mode: str = 'HTML', 
     if not bot_settings.enabled or not bot_settings.bot_token:
         logger.debug("Telegram bot is disabled or token is not set")
         return False
+    
+    # Проверяем, не забанен ли пользователь
+    if check_banned:
+        try:
+            admin = TelegramAdmin.objects.filter(telegram_chat_id=chat_id).first()
+            if admin and admin.banned:
+                logger.debug(f"User {chat_id} is banned, skipping message")
+                return False
+        except Exception as e:
+            logger.error(f"Error checking banned status for {chat_id}: {str(e)}")
+            # Продолжаем отправку, если не удалось проверить
     
     try:
         url = f"https://api.telegram.org/bot{bot_settings.bot_token}/sendMessage"
@@ -135,7 +147,7 @@ def edit_message_text(chat_id: int, message_id: int, text: str, parse_mode: str 
 
 def send_notification_to_authorized_admins(message: str) -> int:
     """
-    Отправить уведомление всем авторизованным админам.
+    Отправить уведомление всем авторизованным админам (не забаненным).
     
     Args:
         message: Текст сообщения
@@ -143,11 +155,11 @@ def send_notification_to_authorized_admins(message: str) -> int:
     Returns:
         Количество успешно отправленных сообщений
     """
-    authorized_admins = TelegramAdmin.objects.filter(authorized=True)
+    authorized_admins = TelegramAdmin.objects.filter(authorized=True, banned=False)
     sent_count = 0
     
     for admin in authorized_admins:
-        if send_telegram_message(admin.telegram_chat_id, message):
+        if send_telegram_message(admin.telegram_chat_id, message, check_banned=False):
             sent_count += 1
     
     logger.info(f"Sent notifications to {sent_count}/{authorized_admins.count()} authorized admins")

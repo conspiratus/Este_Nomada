@@ -70,11 +70,17 @@ def handle_callback_query(callback_query: dict):
         
         logger.info(f"Callback query from user {user_id}: {callback_data}")
         
-        # Проверяем, что пользователь авторизован
+        # Проверяем, что пользователь не забанен и авторизован
         try:
-            admin = TelegramAdmin.objects.get(telegram_chat_id=user_id, authorized=True)
+            admin = TelegramAdmin.objects.get(telegram_chat_id=user_id)
+            if admin.banned:
+                answer_callback_query(callback_id, "❌ Вы заблокированы и не можете использовать этого бота", show_alert=True)
+                return
+            if not admin.authorized:
+                answer_callback_query(callback_id, "❌ Вы не авторизованы для управления заказами", show_alert=True)
+                return
         except TelegramAdmin.DoesNotExist:
-            answer_callback_query(callback_id, "❌ Вы не авторизованы для управления заказами", show_alert=True)
+            answer_callback_query(callback_id, "❌ Вы не зарегистрированы. Используйте /start для регистрации", show_alert=True)
             return
         
         # Обрабатываем изменение статуса заказа
@@ -169,29 +175,72 @@ def handle_message(message: dict):
         chat_id = message['chat']['id']
         user_id = message['from']['id']
         text = message.get('text', '')
+        from_user = message.get('from', {})
         
         logger.info(f"Message from user {user_id} in chat {chat_id}: {text}")
-        
-        # Проверяем, что пользователь авторизован
-        try:
-            admin = TelegramAdmin.objects.get(telegram_chat_id=user_id, authorized=True)
-        except TelegramAdmin.DoesNotExist:
-            send_telegram_message(chat_id, "❌ Вы не авторизованы для использования этого бота.")
-            return
         
         # Обрабатываем команды
         if text.startswith('/'):
             command = text.split()[0] if text.split() else text
             
             if command == '/start' or command == '/menu':
-                # Отправляем главное меню
+                # Автоматически создаем или обновляем запись в TelegramAdmin
+                admin, created = TelegramAdmin.objects.get_or_create(
+                    telegram_chat_id=user_id,
+                    defaults={
+                        'username': from_user.get('username'),
+                        'first_name': from_user.get('first_name'),
+                        'last_name': from_user.get('last_name'),
+                        'authorized': False,
+                        'banned': False,
+                    }
+                )
+                
+                # Обновляем информацию о пользователе, если запись уже существовала
+                if not created:
+                    admin.username = from_user.get('username') or admin.username
+                    admin.first_name = from_user.get('first_name') or admin.first_name
+                    admin.last_name = from_user.get('last_name') or admin.last_name
+                    admin.save()
+                
+                # Проверяем, не забанен ли пользователь
+                if admin.banned:
+                    send_telegram_message(chat_id, "❌ Вы заблокированы и не можете использовать этого бота.", check_banned=False)
+                    return
+                
+                # Проверяем авторизацию
+                if not admin.authorized:
+                    send_telegram_message(chat_id, """
+👋 <b>Добро пожаловать!</b>
+
+Ваш запрос на доступ к боту зарегистрирован.
+
+Ожидайте авторизации администратором. После авторизации вы сможете использовать все функции бота.
+""", check_banned=False)
+                    logger.info(f"New user {user_id} registered, waiting for authorization")
+                    return
+                
+                # Отправляем главное меню для авторизованных
                 keyboard = get_main_menu_keyboard()
                 send_telegram_message(chat_id, """
 👋 <b>Добро пожаловать в админский бот Este Nómada!</b>
 
 Выберите раздел:
-""", reply_markup=keyboard)
+""", reply_markup=keyboard, check_banned=False)
             elif command == '/help':
+                # Проверяем авторизацию и бан
+                try:
+                    admin = TelegramAdmin.objects.get(telegram_chat_id=user_id)
+                    if admin.banned:
+                        send_telegram_message(chat_id, "❌ Вы заблокированы и не можете использовать этого бота.", check_banned=False)
+                        return
+                    if not admin.authorized:
+                        send_telegram_message(chat_id, "❌ Вы не авторизованы для использования этого бота. Ожидайте авторизации администратором.", check_banned=False)
+                        return
+                except TelegramAdmin.DoesNotExist:
+                    send_telegram_message(chat_id, "❌ Вы не зарегистрированы. Используйте /start для регистрации.", check_banned=False)
+                    return
+                
                 keyboard = get_main_menu_keyboard()
                 send_telegram_message(chat_id, """
 📖 <b>Доступные команды:</b>
@@ -201,9 +250,22 @@ def handle_message(message: dict):
 
 <b>Управление заказами:</b>
 Используйте кнопки в уведомлениях о заказах или главное меню для управления заказами.
-""", reply_markup=keyboard)
+""", reply_markup=keyboard, check_banned=False)
             else:
-                send_telegram_message(chat_id, f"❌ Неизвестная команда: {command}\n\nИспользуйте /help для справки.")
+                # Проверяем авторизацию для других команд
+                try:
+                    admin = TelegramAdmin.objects.get(telegram_chat_id=user_id)
+                    if admin.banned:
+                        send_telegram_message(chat_id, "❌ Вы заблокированы и не можете использовать этого бота.", check_banned=False)
+                        return
+                    if not admin.authorized:
+                        send_telegram_message(chat_id, "❌ Вы не авторизованы для использования этого бота.", check_banned=False)
+                        return
+                except TelegramAdmin.DoesNotExist:
+                    send_telegram_message(chat_id, "❌ Вы не зарегистрированы. Используйте /start для регистрации.", check_banned=False)
+                    return
+                
+                send_telegram_message(chat_id, f"❌ Неизвестная команда: {command}\n\nИспользуйте /help для справки.", check_banned=False)
         
     except Exception as e:
         logger.error(f"Error handling message: {str(e)}", exc_info=True)
