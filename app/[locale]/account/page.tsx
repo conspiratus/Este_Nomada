@@ -736,6 +736,22 @@ export default function AccountPage() {
                     )}
                   </div>
                 )}
+                
+                {/* Кнопка выхода */}
+                <div className="mt-6 pt-6 border-t border-warm-200">
+                  <button
+                    onClick={() => {
+                      clearTokens();
+                      setIsAuthenticated(false);
+                      setCustomer(null);
+                      setOrders([]);
+                      router.push(`/${locale}`);
+                    }}
+                    className="w-full px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium"
+                  >
+                    {t('logout') || 'Выйти'}
+                  </button>
+                </div>
               </div>
             </div>
 
