@@ -56,7 +56,29 @@ jobs:
       - name: Check for pending migrations
         working-directory: ./backend
         run: |
-          python manage.py makemigrations --check --dry-run
+          echo "🔍 Проверяю наличие незафиксированных миграций..."
+          set +e
+          python manage.py makemigrations --check --dry-run 2>&1 | tee /tmp/makemigrations_output.txt
+          MAKEMIGRATIONS_EXIT=$?
+          set -e
+          
+          if [ $MAKEMIGRATIONS_EXIT -eq 0 ]; then
+            echo "✅ Все миграции зафиксированы"
+          else
+            echo "⚠️  Обнаружены незафиксированные миграции:"
+            cat /tmp/makemigrations_output.txt
+            echo ""
+            echo "📝 Создаю миграции для проверки..."
+            python manage.py makemigrations --dry-run 2>&1 | head -50
+            echo ""
+            echo "❌ ОШИБКА: Есть незафиксированные миграции!"
+            echo "Пожалуйста, создай и закоммить миграции:"
+            echo "  cd backend"
+            echo "  python manage.py makemigrations"
+            echo "  git add */migrations/"
+            echo "  git commit -m 'Add migrations'"
+            exit 1
+          fi
         env:
           DJANGO_SETTINGS_MODULE: este_nomada.settings
           USE_SQLITE: 'True'
