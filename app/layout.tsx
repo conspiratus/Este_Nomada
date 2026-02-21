@@ -1,6 +1,13 @@
-// Root layout для next-intl с App Router
-// Для next-intl с App Router корневой layout должен быть максимально минимальным
-// html/body создаются в [locale]/layout.tsx
+import { Inter } from "next/font/google";
+import './globals.css';
+
+const inter = Inter({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-inter",
+  display: 'swap',
+  preload: true,
+});
+
 export const metadata = {
   icons: {
     icon: [
@@ -16,9 +23,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Для next-intl с App Router root layout должен возвращать children
-  // html/body создаются в [locale]/layout.tsx
-  // Используем Fragment для правильной структуры React
-  return <>{children}</>;
+  return (
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <body suppressHydrationWarning>{children}</body>
+    </html>
+  );
 }
-
